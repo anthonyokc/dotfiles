@@ -15,6 +15,7 @@ alias update='sudo apt update && apt list --upgradable'
 alias upgrade='sudo apt upgrade && sudo apt autoremove'
 
 alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
+alias config-push='config push git@github.com:AnthonyOKC/dotfiles.git'
 
 ## Path Modifications
 export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
