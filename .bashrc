@@ -16,6 +16,17 @@ alias upgrade='sudo apt upgrade && sudo apt autoremove'
 
 alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 
+## Path Modifications
+export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
+export INFOPATH="/usr/local/texlive/2022/texmf-dist/doc/info:$INFOPATH"
+#export PATH=":$PATH"
+export PATH="/usr/local/texlive/2022/bin/x86_64-linux:$PATH"
+export PATH="/home/anthony/.local/bin:$PATH"
+
+# Add Homebrew
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
