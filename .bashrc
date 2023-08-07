@@ -1,8 +1,10 @@
 ### My Configs
 ## My Commands
 set enable-bracketed-paste Off
-bspc rule -a Ulauncher state=floating border=off
 source /usr/share/autojump/autojump.sh
+
+# Only works if sudo visudo add a NOPASSWD exception for this file
+sudo ~/.config/xfce4/ICE-unix-bug-fix.sh
 
 ## My Aliases
 # some more ls aliases
@@ -14,8 +16,17 @@ alias l='ls -CF'
 alias update='sudo apt update && apt list --upgradable'
 alias upgrade='sudo apt upgrade && sudo apt autoremove'
 
+# Working with dotfiles
 alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 alias config-push='config push git@github.com:AnthonyOKC/dotfiles.git'
+
+# xfce4
+alias go='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
+alias go-show='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
+
+# Makes xf processes run without the window manager check
+alias xfdesktop='xfdesktop --disable-wm-check'
+alias xfsettingsd='xfsettingsd --disable-wm-check'
 
 ## Path Modifications
 export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
@@ -28,6 +39,7 @@ export PATH="/home/anthony/.local/bin:$PATH"
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 
+###  Preset Configuration
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
 # for examples
@@ -141,11 +153,15 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
+
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0 #GWSL
 export PULSE_SERVER=tcp:$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}') #GWSL
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
 export GDK_SCALE=1 #GWSL
 export QT_SCALE_FACTOR=1 #GWSL
+
+# exec bspwm

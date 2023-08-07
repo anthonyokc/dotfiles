@@ -1,6 +1,6 @@
 #! /bin/sh
 
-pgrep -x sxhkd > /dev/null || sxhkd &
+pgrep -x sxhkd > /dev/null || (sxhkd &> /dev/null &)
 
 bspc monitor -d I II III IV V VI VII VIII IX X
 
@@ -12,12 +12,14 @@ bspc config borderless_monocle   true
 bspc config gapless_monocle      true
 
 # bspc rule -a Chromium desktop='^8' state=floating follow=on
+bspc rule -a Ulauncher state=floating border=off
 bspc rule -a angrysearch state=floating manage=on center=true rectangle=1500x1000+0+0
 bspc rule -a Kupfer.py focus=on
 bspc rule -a Screenkey manage=off
 
-# Autostart applications
-# sxhkd &
+# xfce4: Make cursor NOT an X (putting this in .xinitrc causes issues when no display)
+xsetroot -cursor_name left_ptr
+
+## Autostart applications
 picom --config ~/.config/picom/picom.conf --experimental-backend -b &
-# dunst & # notfication daemon
 # polybar -q &

@@ -6,12 +6,16 @@ let g:python_host_prog='C:\Python\python.exe'
 
 set number relativenumber
 
+" Remappings
 map <Enter> o<ESC>
 map <S-Enter> O<ESC>
 
+" Allows saving file as sudo within vim
+cmap w!! w !sudo tee > /dev/null %
 
 imap <C-BS> <C-W>
 
+" Copying and Pasting
 vmap <Leader>y "+y
 vmap <Leader>d "+d
 nmap <Leader>yy "+yy

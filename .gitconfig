@@ -1,0 +1,7 @@
+[credential]
+	helper = cache
+[user]
+	email = anthonyfloresokc@gmail.com
+	name = AnthonyOKC
+[init]
+	defaultBranch = main
