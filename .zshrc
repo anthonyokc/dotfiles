@@ -14,7 +14,7 @@ plug "romkatv/powerlevel10k"
 
 setopt histignorealldups sharehistory
 
-# Use vim keybindings
+# Use Vim Keybindings
 bindkey -v
 bindkey "^[[1;3C" forward-word
 bindkey "^[[1;3D" backward-word
