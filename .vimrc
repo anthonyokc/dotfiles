@@ -1,12 +1,35 @@
 " encoding=utf-8
 " language en_US.utf8
 
-let g:python3_host_prog='C:\Python\python.exe'
-let g:python_host_prog='C:\Python\python.exe'
+if !exists('g:os')
+    if has('win32') || has('win16')
+        let g:os = 'Windows'
+    else
+        let g:os = substitute(system('uname'), '\n', '', '')
+    endif
+endif
+
+if g:os == 'Darwin'
+    " mac stuff
+endif
+
+if g:os == 'Linux'
+
+ let g:python3_host_prog='/usr/bin/python3'
+    let g:python_host_prog='/usr/bin/python3'
+endif
+
+if g:os == 'Windows'
+    let g:python3_host_prog='C:\Python\python.exe'
+    let g:python_host_prog='C:\Python\python.exe'
+endif
+
 
 set number relativenumber
 
 " Remappings
+" Map the leader key to a semicolon.
+let mapleader = ';'
 map <Enter> o<ESC>
 map <S-Enter> O<ESC>
 
@@ -15,7 +38,7 @@ cmap w!! w !sudo tee > /dev/null %
 
 imap <C-BS> <C-W>
 
-" Copying and Pasting
+" Copying and Pasting (requires vim-gtk)
 vmap <Leader>y "+y
 vmap <Leader>d "+d
 nmap <Leader>yy "+yy
@@ -92,6 +115,38 @@ Plug 'preservim/nerdtree'
 " Plug 'numEricL/nerdtree-live-preview'
 
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf.vim'
+
+Plug 'nvim-lua/plenary.nvim'
+    Plug 'ThePrimeagen/harpoon', { 'branch': 'harpoon2' }
+    Plug 'nvim-telescope/telescope.nvim', { 'tag': '0.1.6' }
+
+Plug 'R-nvim/R.nvim'
+Plug 'R-nvim/cmp-r'
+	" remapping the basic :: send line
+	nmap , <Plug>RDSendLine
+	" remapping selection :: send multiple lines
+	vmap , <Plug>RDSendSelection
+	" remapping selection :: send multiple lines + echo lines
+	vmap ,e <Plug>RESendSelection
+" install plugin :: using vim-plug
+Plug 'rizzatti/dash.vim'
+" remap search key
+nmap <silent> <leader>d <Plug>DashSearch<CR>
+Plug 'chrisbra/csv.vim'
+
+" Completions
+Plug 'ncm2/ncm2'
+Plug 'roxma/nvim-yarp', { 'do': 'pip install -r requirements.txt' }
+Plug 'jalvesaq/Nvim-R'
+Plug 'gaalcaras/ncm-R'
+
+" Optional: for snippet support
+" Further configuration might be required, read below
+Plug 'ncm2/ncm2-ultisnips'
+
+" Optional: better Rnoweb support (LaTeX completion)
+Plug 'lervag/vimtex'
 
 call plug#end()
 

@@ -52,8 +52,24 @@
     "jobs_tab_visibility": "shown",
     "default_project_location": "~/ojo",
     "rmd_viewer_type": "pane",
-    "source_with_echo": true,
     "default_sweave_engine": "knitr",
     "rmd_chunk_output_inline": false,
-    "highlight_r_function_calls": true
+    "highlight_r_function_calls": true,
+    "save_workspace": "never",
+    "load_workspace": false,
+    "auto_append_newline": true,
+    "strip_trailing_whitespace": true,
+    "show_diagnostics_other": true,
+    "source_with_echo": true,
+    "copilot_enabled": true,
+    "style_diagnostics": true,
+    "cran_mirror": {
+        "name": "USA (MO) [https]",
+        "host": "Washington University, St. Louis, MO",
+        "url": "https://cran.wustl.edu/",
+        "country": "us",
+        "ok": 1,
+        "secondary": ""
+    },
+    "copilot_indexing_enabled": true
 }

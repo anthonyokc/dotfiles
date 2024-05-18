@@ -20,6 +20,9 @@ bspc rule -a Screenkey manage=off
 # xfce4: Make cursor NOT an X (putting this in .xinitrc causes issues when no display)
 xsetroot -cursor_name left_ptr
 
+# Adjust the speed of repeat keys, first number is the ms interval for to start repeating, the 2nd is the number of times repeated per second. (Useful for vim cursor movement)
+xset r rate 200 200
+
 ## Autostart applications
 picom --config ~/.config/picom/picom.conf --experimental-backend -b &
 # polybar -q &

@@ -1,3 +1,27 @@
+snippet newrmark
+	```{r Import Packages}
+	library(dplyr)
+	library(readr)
+	library(here)
+	```
+	
+	```{r Import Data}
+	
+	```
+
+snippet pretty
+	## Needed to make the plots pretty
+	sysfonts::font_add_google("Roboto Condensed", "roboto_condensed")
+	showtext::showtext_auto() # Automatically use custom fonts on plots
+	hc_lang <- getOption("highcharter.lang")
+	hc_lang$thousandsSep <- ","
+	options(highcharter.lang = hc_lang)
+
+snippet rfiles
+	# Source R Files
+	r_files <- here("R", list.files(here("R")))
+	for (file in r_files) { source(file) }
+
 snippet pac
 	# Load Packages
 	if (!"pacman" %in% installed.packages()) {
