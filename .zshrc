@@ -14,7 +14,7 @@ plug "romkatv/powerlevel10k"
 
 setopt histignorealldups sharehistory
 
-# Use Vim Keybindings
+# Use vim keybindings
 bindkey -v
 bindkey "^[[1;3C" forward-word
 bindkey "^[[1;3D" backward-word
@@ -68,6 +68,22 @@ alias upgrade='sudo apt upgrade && sudo apt autoremove'
 alias v='nvim'
 alias vim='nvim'
 alias vf='nvim -c "FZF"'
+
+# Working with Git
+alias ga='git add'
+alias gc='git commit -m'
+alias gca='git commit -am'
+alias gs='git status'
+alias gd='git diff'
+alias gco='git checkout'
+alias gb='git branch'
+alias gl='git log'
+alias gpl='git pull'
+alias gps='git push'
+alias gcl='git clone'
+alias gch='git checkout'
+alias gf='git fetch'
+
 
 # Working with dotfiles
 alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
@@ -190,7 +206,7 @@ fi
 # GWSL
 export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0 #GWSL
 export PULSE_SERVER=tcp:$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}') #GWSL
- 
+
 export GDK_SCALE=1 #GWSL
 export QT_SCALE_FACTOR=1 #GWSL
 
@@ -201,3 +217,7 @@ export LIBGL_ALWAYS_INDIRECT=1 #GWSL
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+export OPENSSL_CONF=/etc/ssl  # For phantomjs
+export SUDO_EDITOR=$(which nvim)
+export EDITOR=$(which nvim)
