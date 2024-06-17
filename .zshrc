@@ -160,6 +160,7 @@ alias upgrade='sudo apt upgrade && sudo apt autoremove'
 alias v='nvim'
 alias vim='nvim'
 alias vf='nvim -c "FZF"'
+alias vz='nvim ~/.zshrc'
 
 # tmux
 alias t='tmux new-session -s "Home 🏠"'
@@ -196,44 +197,41 @@ function gcl() {
 }
 
 # fzf fuzzy search of git repositories
-export fzf_git_cache="$HOME/.cache/fzf-git-cache"
-export GITHUB_ORG="openjusticeok"
-function fclone() {
-    repo="$( \
-        (cat $fzf_git_cache 2>/dev/null;\ listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
-        tee $fzf_git_cache | \
-        nauniq | \
-        fzf \
-    )"
-
-    if [[ -n $repo ]]; then
-       echo "Cloning '$repo' from Github"
-       git clone "git@github.com:$repo.git" ~/code/$repo
-    fi
-}
-
-function fhub() {
-    repo="$( \
-        (cat $fzf_git_cache 2>/dev/null;\ listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
-        tee $fzf_git_cache | \
-        nauniq | \
-        fzf \
-    )"
-
-    if [[ -n $repo ]]; then
-       echo "Opening '$repo' in Web Browser"
-       hub browse $repo
-    else
-        echo "Failed"
-        hub browse $repo
-    fi
-}
-
+# function fclone() {
+#     repo="$( \
+#         (cat $fzf_git_cache 2>/dev/null; listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+#         tee $fzf_git_cache | \
+#         nauniq | \
+#         fzf \
+#     )"
+#
+#     if [[ -n $repo ]]; then
+#        echo "Cloning '$repo' from Github"
+#        git clone "git@github.com:$repo.git" ~/code/$repo
+#     fi
+# }
+#
+# function fhub() {
+#     repo="$( \
+#         (cat $fzf_git_cache 2>/dev/null; listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+#         tee $fzf_git_cache | \
+#         nauniq | \
+#         gum filter --limit 1 --placeholder 'Open a repo in web browser' --height 50 --prompt='⚡' \
+#     )"
+#
+#     if [[ -n $repo ]]; then
+#        echo "Opening '$repo' in Web Browser"
+#        hub browse $repo
+#     else
+#         echo "Failed"
+#         hub browse $repo
+#     fi
+# }
 
 
 # Working with dotfiles
-alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
-alias config-push='config push git@github.com:AnthonyOKC/dotfiles.git'
+alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
+alias dotfiles-push='config push git@github.com:AnthonyOKC/dotfiles.git'
 
 # xfce4
 alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
