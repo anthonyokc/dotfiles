@@ -166,5 +166,5 @@ export GDK_SCALE=1 #GWSL
 export QT_SCALE_FACTOR=1 #GWSL
 
 export LIBGL_ALWAYS_INDIRECT=1 #GWSL
-# 
+#
 # exec bspwm

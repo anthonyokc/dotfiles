@@ -13,8 +13,8 @@
 			"x": 7,
 			"y": 7,
 			"width": 1880,
-			"height": 1546,
-			"maximized": false
+			"height": 1541,
+			"maximized": true
 		},
 		"accessibility": false,
 		"disableRendererAccessibility": false

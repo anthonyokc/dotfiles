@@ -1,3 +1,6 @@
+snippet rins
+	renv::install("${1:package}")
+
 snippet newrmark
 	```{r Import Packages}
 	library(dplyr)
@@ -8,6 +11,8 @@ snippet newrmark
 	```{r Import Data}
 	
 	```
+snippet requireinstall
+	if (!require(${1:package})) install.packages("${1:package}")
 
 snippet pretty
 	## Needed to make the plots pretty

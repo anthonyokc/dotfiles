@@ -1,29 +1,63 @@
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+### This file includes
+# ZSH plugins
+# ZSH options
+# ZSH keybindings
+# ZSH completion
+# Path modifications
+# My Configs
+# My Commands
+# My Aliases
+# My Functions
+# GWSL
 
+### ZSH Plugins
 # Created by Zap installer
 [ -f "${XDG_DATA_HOME:-$HOME/.local/share}/zap/zap.zsh" ] && source "${XDG_DATA_HOME:-$HOME/.local/share}/zap/zap.zsh"
 plug "zsh-users/zsh-autosuggestions"
+bindkey '^k' autosuggest-execute
+bindkey '^j' autosuggest-accept
 plug "zap-zsh/supercharge"
 plug "zsh-users/zsh-syntax-highlighting"
 plug "romkatv/powerlevel10k"
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+### ZSH Options
 setopt histignorealldups sharehistory
-
-# Use vim keybindings
-bindkey -v
-bindkey "^[[1;3C" forward-word
-bindkey "^[[1;3D" backward-word
-
 # Keep 1000 lines of history within the shell and save it to ~/.zsh_history:
 HISTSIZE=1000
 SAVEHIST=1000
 HISTFILE=~/.zsh_history
 
+# Use vim keybindings
+bindkey -v
+bindkey "^[[1;3C" forward-word
+bindkey "^[[1;3D" backward-word
+bindkey '^E' backward-kill-word
+export KEYTIMEOUT=1 # 10ms. ZSH uses the KEYTIMEOUT parameter to determine how long to wait (in hundredths of a second) for additional characters in sequence. Default is 0.4 seconds.
+
+# Change cursor shape for different vi modes.
+function zle-keymap-select {
+  if [[ ${KEYMAP} == vicmd ]] ||
+     [[ $1 = 'block' ]]; then
+    echo -ne '\e[1 q'
+  elif [[ ${KEYMAP} == main ]] ||
+       [[ ${KEYMAP} == viins ]] ||
+       [[ ${KEYMAP} = '' ]] ||
+       [[ $1 = 'beam' ]]; then
+    echo -ne '\e[5 q'
+  fi
+}
+zle -N zle-keymap-select
+zle-line-init() {
+    zle -K viins # initiate `vi insert` as keymap (can be removed if `bindkey -V` has been set elsewhere)
+    echo -ne "\e[5 q"
+}
+zle -N zle-line-init
+echo -ne '\e[5 q' # Use beam shape cursor on startup.
+preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
+
+### ZSH Completion
 # Use modern completion system
 autoload -Uz compinit
 compinit
@@ -46,15 +80,73 @@ zstyle ':completion:*' verbose true
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
 zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
 
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+### Path Modifications
+# Function: only adds to path if it's not already there
+# This way we can avoid duplicates in the PATH when sourcing this file multiple times
+# Usage: add_to_path "/path/to/add"
+add_to_path() {
+    case ":$PATH:" in
+        *":$1:"*) ;;
+        *) export PATH="$1:$PATH" ;;
+    esac
+}
+
+add_to_path "/usr/local/texlive/2022/bin/x86_64-linux"
+add_to_path "/home/anthony/.local/bin"
+add_to_path "/snap/bin"
+add_to_path "/opt/nvim-linux64/bin"
+add_to_path "/home/anthony/scripts"
+add_to_path "/usr/local/go/bin"
+add_to_path "/usr/local/cuda-12.5/bin"
+
+# Add Homebrew to PATH
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+
+# Test of a more general function that can be used for any path variable
+# add_to_any_path($1) {
+#     case ":$1:" in
+#         *":$2:"*) ;;
+#         *) export $1="$2:$1" ;;
+#     esac
+# }
+# add_to_any_path "MANPATH" "/usr/local/texlive/2022/texmf-dist
+export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
+# Preset Configuration
+export INFOPATH="/usr/local/texlive/2022/texmf-dist/doc/info:$INFOPATH"
+
+# Paths to look for dynamic (and shared) libraries
+# Example of something we would replace with add_to_any_path
+add_to_ld_library_path() {
+    case ":$LD_LIBRARY_PATH:" in
+        *":$1:"*) ;;
+        *) export LD_LIBRARY_PATH="$1:$LD_LIBRARY_PATH" ;;
+    esac
+}
+add_to_ld_library_path "/usr/lib/wsl/lib"
+add_to_ld_library_path "/usr/local/cuda-12.5/lib64"
 
 ### My Configs
 ## My Commands
 set enable-bracketed-paste Off
-source /usr/share/autojump/autojump.sh
+# source /usr/share/autojump/autojump.sh
+source <(fzf --zsh) # Set up fzf key bindings and fuzzy completion
 
-## My Aliases
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+export OPENSSL_CONF=/etc/ssl  # For phantomjs
+export SUDO_EDITOR=$(which nvim)
+export EDITOR=$(which nvim)
+export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket" # For ssh-agent
+
+## Autostart
+eval "$(zoxide init zsh)"
+
+### My Aliases
+alias zs='source ~/.zshrc'
+
 # some more ls aliases
 alias ll='lsd -alF'
 alias la='lsd -A'
@@ -69,7 +161,23 @@ alias v='nvim'
 alias vim='nvim'
 alias vf='nvim -c "FZF"'
 
+# tmux
+alias t='tmux new-session -s "Home 🏠"'
+alias ta='tmux attach'
+alias tk='tmux kill-server'
+
+# yazi
+function y() {
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+    yazi "$@" --cwd-file="$tmp"
+    if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}
+
 # Working with Git
+alias sa='ssh-add ~/.ssh/github_ed25519.pub'
 alias ga='git add'
 alias gc='git commit -m'
 alias gca='git commit -am'
@@ -78,11 +186,49 @@ alias gd='git diff'
 alias gco='git checkout'
 alias gb='git branch'
 alias gl='git log'
+alias gplf= 'git fetch --all; git reset --hard HEAD; git merge @{u}'
 alias gpl='git pull'
 alias gps='git push'
-alias gcl='git clone'
 alias gch='git checkout'
 alias gf='git fetch'
+function gcl() {
+    git clone git@github.com:$1.git
+}
+
+# fzf fuzzy search of git repositories
+export fzf_git_cache="$HOME/.cache/fzf-git-cache"
+export GITHUB_ORG="openjusticeok"
+function fclone() {
+    repo="$( \
+        (cat $fzf_git_cache 2>/dev/null;\ listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+        tee $fzf_git_cache | \
+        nauniq | \
+        fzf \
+    )"
+
+    if [[ -n $repo ]]; then
+       echo "Cloning '$repo' from Github"
+       git clone "git@github.com:$repo.git" ~/code/$repo
+    fi
+}
+
+function fhub() {
+    repo="$( \
+        (cat $fzf_git_cache 2>/dev/null;\ listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+        tee $fzf_git_cache | \
+        nauniq | \
+        fzf \
+    )"
+
+    if [[ -n $repo ]]; then
+       echo "Opening '$repo' in Web Browser"
+       hub browse $repo
+    else
+        echo "Failed"
+        hub browse $repo
+    fi
+}
+
 
 
 # Working with dotfiles
@@ -90,20 +236,9 @@ alias config='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 alias config-push='config push git@github.com:AnthonyOKC/dotfiles.git'
 
 # xfce4
-alias go-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
-alias go='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
+alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
+alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 
-## Path Modifications
-export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
-export INFOPATH="/usr/local/texlive/2022/texmf-dist/doc/info:$INFOPATH"
-#export PATH=":$PATH"
-export PATH="/usr/local/texlive/2022/bin/x86_64-linux:$PATH"
-export PATH="/home/anthony/.local/bin:$PATH"
-export PATH="/snap/bin:$PATH"
-export PATH="/opt/nvim-linux64/bin:$PATH"
-
-# Add Homebrew
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 
 ###  Preset Configuration
@@ -149,12 +284,12 @@ esac
 
 if [ -n "$force_color_prompt" ]; then
     if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
-	# We have color support; assume it's compliant with Ecma-48
-	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
-	# a case would tend to support setf rather than setaf.)
-	color_prompt=yes
+    # We have color support; assume it's compliant with Ecma-48
+    # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+    # a case would tend to support setf rather than setaf.)
+    color_prompt=yes
     else
-	color_prompt=
+    color_prompt=
     fi
 fi
 
@@ -203,21 +338,16 @@ if [ -f ~/.zsh_aliases ]; then
     . ~/.zsh_aliases
 fi
 
-# GWSL
-export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0 #GWSL
-export PULSE_SERVER=tcp:$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}') #GWSL
+### Setting up GWSL
+# Comment out the following lines if you are not using GWSL
+# export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0 #GWSL
+# export PULSE_SERVER=tcp:$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}') #GWSL
+#
+# export GDK_SCALE=1 #GWSL
+# export QT_SCALE_FACTOR=1 #GWSL
+#
+# export LIBGL_ALWAYS_INDIRECT=1 #GWSL
 
-export GDK_SCALE=1 #GWSL
-export QT_SCALE_FACTOR=1 #GWSL
-
-export LIBGL_ALWAYS_INDIRECT=1 #GWSL
-
-# export GDK_DPI_SCALE=1.5 # WSLg
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-
-export OPENSSL_CONF=/etc/ssl  # For phantomjs
-export SUDO_EDITOR=$(which nvim)
-export EDITOR=$(which nvim)
+### Setting up WSLg
+export GDK_DPI_SCALE=1.5 # My monitor works best with 150% DPI Scaling
+xrdb -load ~/.Xresources

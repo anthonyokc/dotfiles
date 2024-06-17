@@ -1,3 +1,8 @@
 {
-    "breakerofchains::break_chain": "Alt+Enter"
+    "breakerofchains::break_chain": "Alt+Enter",
+    "codegrip::addin_reshape": "Ctrl+/",
+    "styler::style_selection": "Ctrl+Alt+0",
+    "codegrip::addin_move_inside": "End",
+    "codegrip::addin_move_outside": "Home",
+    "styler::style_active_file": "Ctrl+Shift+F"
 }
