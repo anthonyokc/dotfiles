@@ -196,42 +196,12 @@ function gcl() {
     git clone git@github.com:$1.git
 }
 
-# fzf fuzzy search of git repositories
-# function fclone() {
-#     repo="$( \
-#         (cat $fzf_git_cache 2>/dev/null; listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
-#         tee $fzf_git_cache | \
-#         nauniq | \
-#         fzf \
-#     )"
-#
-#     if [[ -n $repo ]]; then
-#        echo "Cloning '$repo' from Github"
-#        git clone "git@github.com:$repo.git" ~/code/$repo
-#     fi
-# }
-#
-# function fhub() {
-#     repo="$( \
-#         (cat $fzf_git_cache 2>/dev/null; listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
-#         tee $fzf_git_cache | \
-#         nauniq | \
-#         gum filter --limit 1 --placeholder 'Open a repo in web browser' --height 50 --prompt='⚡' \
-#     )"
-#
-#     if [[ -n $repo ]]; then
-#        echo "Opening '$repo' in Web Browser"
-#        hub browse $repo
-#     else
-#         echo "Failed"
-#         hub browse $repo
-#     fi
-# }
+alias hb='hub browse'
 
 
 # Working with dotfiles
 alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
-alias dotfiles-push='config push git@github.com:AnthonyOKC/dotfiles.git'
+alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
 
 # xfce4
 alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'

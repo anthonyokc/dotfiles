@@ -16,8 +16,6 @@ function fclonesesh() {
 
        echo "Cloning from Github into $HOME/code/$username"
        sesh clone -d $HOME/code/$username git@github.com:$repo.git
-    else
-
     fi
 }
 
