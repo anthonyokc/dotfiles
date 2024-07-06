@@ -31,10 +31,11 @@ HISTFILE=~/.zsh_history
 
 # Use vim keybindings
 bindkey -v
+export KEYTIMEOUT=1 # 10ms. ZSH uses the KEYTIMEOUT parameter to determine how long to wait (in hundredths of a second) for additional characters in sequence. Default is 0.4 seconds.
+bindkey '^E' backward-kill-word # Ctrl + ;
+bindkey '^H' backward-kill-word # Ctrl + Backspace
 bindkey "^[[1;3C" forward-word
 bindkey "^[[1;3D" backward-word
-bindkey '^E' backward-kill-word
-export KEYTIMEOUT=1 # 10ms. ZSH uses the KEYTIMEOUT parameter to determine how long to wait (in hundredths of a second) for additional characters in sequence. Default is 0.4 seconds.
 
 # Change cursor shape for different vi modes.
 function zle-keymap-select {
@@ -197,6 +198,8 @@ function gcl() {
 }
 
 alias hb='hub browse'
+
+alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 
 
 # Working with dotfiles

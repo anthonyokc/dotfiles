@@ -5,6 +5,8 @@ function fclonesesh() {
 
     repo="$( \
         (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+        # (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
+        # (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $(curl -X POST -H "Accept: application/json" -d "client_id=$GITHUB_SEARCH_CLIENT_ID&client_secret=$GITHUB_SEARCH_CLIENT_SECRET&code=$GITHUB_SEARCH_CLIENT_CODE" https://github.com/login/oauth/access_token | jq -r '.access_token') $GITHUB_ORG) | \
         tee $fzf_git_cache | \
         nauniq | \
         gum filter --limit 1 --placeholder 'Clone a repo' --height 50 --prompt='🤖 '
