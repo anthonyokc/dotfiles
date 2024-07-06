@@ -4,9 +4,7 @@
 function fclonesesh() {
 
     repo="$( \
-        (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
-        # (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
-        # (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $(curl -X POST -H "Accept: application/json" -d "client_id=$GITHUB_SEARCH_CLIENT_ID&client_secret=$GITHUB_SEARCH_CLIENT_SECRET&code=$GITHUB_SEARCH_CLIENT_CODE" https://github.com/login/oauth/access_token | jq -r '.access_token') $GITHUB_ORG) | \
+        (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
         tee $fzf_git_cache | \
         nauniq | \
         gum filter --limit 1 --placeholder 'Clone a repo' --height 50 --prompt='🤖 '
@@ -14,10 +12,17 @@ function fclonesesh() {
 
     if [[ -n $repo ]]; then
        username="${repo%%/*}"  # Extracts the username part before '/'
-       mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
+       repo_dir="$HOME/code/$repo"
 
-       echo "Cloning from Github into $HOME/code/$username"
-       sesh clone -d $HOME/code/$username git@github.com:$repo.git
+       if [ -d "$repo_dir" ]; then
+          echo "Directory $repo_dir already exists. Connecting..."
+          sesh connect $repo_dir
+       else
+          mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
+
+          echo "Cloning from Github into $repo_dir"
+          sesh clone -d $repo_dir git@github.com:$repo.git
+       fi
     fi
 }
 
