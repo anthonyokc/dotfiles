@@ -205,7 +205,13 @@ alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 # Working with dotfiles
 alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
-alias dca='dotfiles add -u & dotfiles commit -m'
+alias da='dotfiles add -u'
+alias dc='dotfiles commit -m'
+alias ds='dotfiles status'
+alias dp='dotfiles-push'
+
+# tmux bare git repo
+alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
 
 # xfce4
 alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'

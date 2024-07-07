@@ -8,7 +8,7 @@ script='query {
       }
       pageInfo {
         endCursor startCursor hasNextPage } } }
-  organization(login: \"openjusticeok\") {
+  organization(login: \"github\") {
     repositories(first: 100) {
       nodes {
         name
@@ -28,7 +28,6 @@ script="$(echo $script)"   # the query should be onliner, without newlines
 
 echo $script
 
-token=$(cat ~/.fhub_token)
 curl -i -H 'Content-Type: application/json' \
    -H "Authorization: bearer $GITHUB_TOKEN" \
    -X POST -d "{ \"query\": \"$script\"}" https://api.github.com/graphql
