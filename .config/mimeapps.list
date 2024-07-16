@@ -1,0 +1,20 @@
+[Added Associations]
+application/x-theme=org.xfce.mousepad.desktop;
+application/x-desktop=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;org.xfce.mousepad.desktop;
+application/vnd.debian.binary-package=gdebi.desktop;org.gnome.Software.desktop;xarchiver.desktop;gnome-software-local-file.desktop;userapp-sudo sh -c "gdebi-gtk %f"-TD6Y11.desktop;
+application/x-shellscript=userapp-bash -c '%f'-WE2971.desktop;com.alacritty.Alacritty.desktop;xfce4-terminal.desktop;vim.desktop;userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;
+text/plain=vim.desktop;userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;userapp-bach -c 'vim %f'-CXQ381.desktop;
+text/x-matlab=vim.desktop;
+application/x-yaml=rstudio.desktop;
+
+[Default Applications]
+text/plain=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
+application/x-shellscript=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
+application/x-yaml=rstudio.desktop
+text/html=custom-brave-browser.desktop
+x-scheme-handler/http=custom-brave-browser.desktop
+x-scheme-handler/https=custom-brave-browser.desktop
+x-scheme-handler/about=custom-brave-browser.desktop
+x-scheme-handler/unknown=custom-brave-browser.desktop
+
+[Removed Associations]

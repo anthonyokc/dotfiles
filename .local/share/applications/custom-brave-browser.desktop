@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=Brave Browser (Custom)
+Comment=Browse the Web
+Exec=/mnt/c/Users/AnthonyFlores/AppData/Local/BraveSoftware/Brave-Browser/Application/brave.exe %u
+Icon=brave-browser
+Terminal=false
+Type=Application
+MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/about;x-scheme-handler/unknown;
+
