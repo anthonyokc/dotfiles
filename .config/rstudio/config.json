@@ -8,13 +8,13 @@
 		"fixedWidthFont": "CaskaydiaCove Nerd Font Mono"
 	},
 	"view": {
-		"zoomLevel": 1.1,
+		"zoomLevel": 1,
 		"windowBounds": {
-			"x": 7,
-			"y": 7,
-			"width": 1880,
-			"height": 1541,
-			"maximized": true
+			"x": 850,
+			"y": 27,
+			"width": 1691,
+			"height": 1364,
+			"maximized": false
 		},
 		"accessibility": false,
 		"disableRendererAccessibility": false

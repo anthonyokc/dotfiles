@@ -2,7 +2,7 @@
 Version=1.0
 Name=Brave Browser (Custom)
 Comment=Browse the Web
-Exec=/mnt/c/Users/AnthonyFlores/AppData/Local/BraveSoftware/Brave-Browser/Application/brave.exe %u
+Exec=/home/anthony/scripts/brave_wsl_open.sh %u
 Icon=brave-browser
 Terminal=false
 Type=Application

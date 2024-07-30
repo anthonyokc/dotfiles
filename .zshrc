@@ -218,7 +218,6 @@ alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && star
 alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 
 
-
 ###  Preset Configuration
 # ~/.bashrc: executed by bash(1) for non-login shells.
 # see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
@@ -328,4 +327,5 @@ fi
 
 ### Setting up WSLg
 export GDK_DPI_SCALE=1.5 # My monitor works best with 150% DPI Scaling
+
 xrdb -load ~/.Xresources
