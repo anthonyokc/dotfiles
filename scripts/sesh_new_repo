@@ -17,7 +17,6 @@ function sesh_new_repo() {
        repo_dir="$(gum input --placeholder "What's the name of the new repo?" --prompt="📝 ")"
 
        if [ -d "$github_user_dir/$repo_dir" ]; then
-           echo "it worked"
           gum spin --title "Directory $github_user_dir/$repo_dir already exists. Connecting..." -- \
               sesh connect $repo_dir
        else
@@ -33,14 +32,14 @@ function sesh_new_repo() {
               gum filter --limit 1 --placeholder 'Pick repo type...' --height 50
           )
 
-          if [ "$repo_type" == "private" ]; then
-              gh repo create $repo_dir --private --template $template
+          if [ "$repo_type" == "🔒 Private" ]; then
+              gh repo create $github_user/$repo_dir --private --template $template
           else
-              gh repo create $repo_dir --public --template $template
+              gh repo create $github_user/$repo_dir --public --template $template
           fi
 
           gum spin --title "Cloning from GitHub into $repo_dir" -- \
-              sesh clone -d $github_user_dir/$repo_dir git@github.com:$repo_dir.git
+              sesh clone -d $HOME/code/$github_user/$repo_dir git@github.com:$repo_dir.git
        fi
     fi
 }
