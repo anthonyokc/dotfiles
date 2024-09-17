@@ -154,8 +154,8 @@ alias la='lsd -A'
 alias l='lsd'
 
 # update/upgrade
-alias update='sudo apt update && apt list --upgradable'
-alias upgrade='sudo apt upgrade && sudo apt autoremove'
+alias update='brew update && sudo apt update && apt list --upgradable'
+alias upgrade='sudo apt upgrade && sudo apt autoremove && brew upgrade'
 
 # Vim
 alias v='nvim'
@@ -217,6 +217,8 @@ alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
 alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
 alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 
+# bat
+alias bat=batcat
 
 ###  Preset Configuration
 # ~/.bashrc: executed by bash(1) for non-login shells.

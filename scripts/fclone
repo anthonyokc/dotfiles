@@ -4,7 +4,7 @@
 function fclone() {
 
     repo="$( \
-        (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_TOKEN $GITHUB_ORG) | \
+        (cat $fzf_git_cache 2>/dev/null; $HOME/scripts/listrepo_gql $GITHUB_TOKEN_2 $GITHUB_ORG) | \
         tee $fzf_git_cache | \
         nauniq | \
         gum filter --limit 1 --placeholder 'Clone a repo' --height 50 --prompt='⬇️ '

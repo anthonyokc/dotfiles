@@ -20,8 +20,22 @@ function fclonesesh() {
        else
           mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
 
-          gum spin --title "Cloning from GitHub into $repo_dir" -- \
-              sesh clone -d $HOME/code/$username git@github.com:$repo.git
+          # Add gum select to choose between Normal Git Repo and Bare Git Repo
+          repo_types=("Normal Git Repo" "Bare Git Repo")
+          repo_type=$( \
+              printf "%s\n" "${repo_types[@]}" | \
+              gum filter --limit 1 --placeholder "Choose a repo type" --height 50
+          )
+
+          if [[ $repo_type == "Normal Git Repo" ]]; then
+              gum spin --title "Cloning from GitHub into $repo_dir" -- \
+                  git clone git@github.com:$repo.git $repo_dir
+          else
+              gum spin --title "Cloning from GitHub into $repo_dir" -- \
+                  git-clone-bare-for-worktrees.sh git@github.com:$repo.git $repo_dir
+          fi
+
+          sesh connect $repo_dir
        fi
     fi
 }

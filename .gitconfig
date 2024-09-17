@@ -11,4 +11,6 @@
 [commit]
     gpgsign = true
 [pull]
-	rebase = true
+    rebase = true
+[alias]
+   clone-for-worktrees = "!sh $HOME/scripts/git-clone-bare-for-worktrees.sh"

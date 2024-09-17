@@ -34,8 +34,10 @@ function sesh_new_repo() {
 
           if [ "$repo_type" == "🔒 Private" ]; then
               gh repo create $github_user/$repo_dir --private --template $template
+              sleep 2
           else
               gh repo create $github_user/$repo_dir --public --template $template
+              sleep 2
           fi
 
           gum spin --title "Cloning from GitHub into $repo_dir" -- \
