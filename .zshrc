@@ -153,9 +153,22 @@ alias ll='lsd -alF'
 alias la='lsd -A'
 alias l='lsd'
 
+# File tree with plain hyphens
+function treee() {
+    tree --charset=ASCII | sed 's/|/ /g; s/`/-/g; s/+-/-/g; s/--/-/g; s/--/-/g'
+}
+
 # update/upgrade
 alias update='brew update && sudo apt update && apt list --upgradable'
 alias upgrade='sudo apt upgrade && sudo apt autoremove && brew upgrade'
+
+# ssh server monitoring/connections
+alias sl='sudo tail -f /var/log/auth.log'
+alias ss='sudo systemctl status ssh'
+alias sr='sudo systemctl restart ssh'
+
+# networking
+alias i='ip -br a'
 
 # Vim
 alias v='nvim'
@@ -205,6 +218,7 @@ alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 # Working with dotfiles
 alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
+alias dotfiles-pull='dotfiles pull git@github.com:AnthonyOKC/dotfiles.git'
 alias da='dotfiles add -u'
 alias dc='dotfiles commit -m'
 alias ds='dotfiles status'

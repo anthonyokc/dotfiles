@@ -5,6 +5,7 @@ function sesh_new_repo() {
 
     GITHUB_USERNAME="$(git config user.name)"
     github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
+    github_uers=("${github_users[@],,}")  # Convert array elements to lowercase
 
     github_user="$( \
         printf "%s\n" "${github_users[@]}" | \
@@ -18,13 +19,13 @@ function sesh_new_repo() {
 
        if [ -d "$github_user_dir/$repo_dir" ]; then
           gum spin --title "Directory $github_user_dir/$repo_dir already exists. Connecting..." -- \
-              sesh connect $repo_dir
+              sesh connect $github_user_dir/$repo_dir
        else
           template=$( \
               (gh repo list anthonyokc --json name,isTemplate --jq '.[] | select(.isTemplate) | .name') | \
               gum filter --limit 1 --placeholder 'Pick a repo template' --height 50 --prompt='📚'
           )
-          mkdir -p "$HOME/code/$github_user_dir"  # Create directory for the username if it doesn't exist
+          mkdir -p "$github_user_dir"  # Create directory for the username if it doesn't exist
 
           repo_types=("🌐 Public" "🔒 Private")
           repo_type=$( \
@@ -40,8 +41,29 @@ function sesh_new_repo() {
               sleep 2
           fi
 
-          gum spin --title "Cloning from GitHub into $repo_dir" -- \
-              sesh clone -d $HOME/code/$github_user/$repo_dir git@github.com:$repo_dir.git
+          # Open the repository URL in the default web browser
+          gh repo view $github_user/$repo_dir --web
+
+          # Add gum select to choose between Normal Git Repo and Bare Git Repo
+          repo_types=("Bare Git Repo" "Normal Git Repo")
+          repo_type=$( \
+              printf "%s\n" "${repo_types[@]}" | \
+              gum filter --limit 1 --placeholder "Choose a repo type" --height 50
+          )
+
+          if [[ $repo_type == "Normal Git Repo" ]]; then
+              gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
+                  git clone git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
+              printf "Done! 🎉"
+              sleep 2
+          else
+              gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
+                  git-clone-bare-for-worktrees.sh git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
+              printf "Done! 🎉"
+              sleep 2
+          fi
+
+          sesh connect $github_user_dir/$repo_dir
        fi
     fi
 }

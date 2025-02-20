@@ -168,3 +168,4 @@ export QT_SCALE_FACTOR=1 #GWSL
 export LIBGL_ALWAYS_INDIRECT=1 #GWSL
 #
 # exec bspwm
+. "$HOME/.cargo/env"

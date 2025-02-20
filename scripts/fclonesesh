@@ -21,7 +21,7 @@ function fclonesesh() {
           mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
 
           # Add gum select to choose between Normal Git Repo and Bare Git Repo
-          repo_types=("Normal Git Repo" "Bare Git Repo")
+          repo_types=("Bare Git Repo" "Normal Git Repo")
           repo_type=$( \
               printf "%s\n" "${repo_types[@]}" | \
               gum filter --limit 1 --placeholder "Choose a repo type" --height 50
