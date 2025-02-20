@@ -68,7 +68,6 @@ zstyle ':completion:*' completer _expand _complete _correct _approximate
 zstyle ':completion:*' format 'Completing %d'
 zstyle ':completion:*' group-name ''
 zstyle ':completion:*' menu select=2
-eval "$(dircolors -b)"
 zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
 zstyle ':completion:*' list-colors ''
 zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
@@ -101,8 +100,14 @@ add_to_path "/home/anthony/scripts"
 add_to_path "/usr/local/go/bin"
 add_to_path "/usr/local/cuda-12.5/bin"
 
-# Add Homebrew to PATH
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+# Very Linux specific stuff here
+if [[ "$(uname)" == "Linux" ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" # Add Homebrew to PATH
+
+    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket" # For ssh-agent
+else
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
 
 # Test of a more general function that can be used for any path variable
 # add_to_any_path($1) {
@@ -140,7 +145,6 @@ export NVM_DIR="$HOME/.nvm"
 export OPENSSL_CONF=/etc/ssl  # For phantomjs
 export SUDO_EDITOR=$(which nvim)
 export EDITOR=$(which nvim)
-export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket" # For ssh-agent
 
 ## Autostart
 eval "$(zoxide init zsh)"
@@ -305,6 +309,7 @@ esac
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    eval "$(dircolors -b)"
     alias ls='lsd --color=auto'
     #alias dir='dir --color=auto'
     #alias vdir='vdir --color=auto'
@@ -344,4 +349,4 @@ fi
 ### Setting up WSLg
 export GDK_DPI_SCALE=1.5 # My monitor works best with 150% DPI Scaling
 
-xrdb -load ~/.Xresources
+# xrdb -load ~/.Xresources
