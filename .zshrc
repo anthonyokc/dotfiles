@@ -94,11 +94,11 @@ add_to_path() {
 }
 
 add_to_path "/usr/local/texlive/2022/bin/x86_64-linux"
-add_to_path "/home/anthony/.local/bin"
+add_to_path "$HOME/.local/bin"
 add_to_path "/snap/bin"
 add_to_path "/opt/nvim-linux64/bin"
-add_to_path "/home/anthony/scripts"
-add_to_path "/home/anthony/scripts/installers/"
+add_to_path "$HOME/scripts"
+add_to_path "$HOME/scripts/installers/"
 add_to_path "/usr/local/go/bin"
 add_to_path "/usr/local/cuda-12.5/bin"
 

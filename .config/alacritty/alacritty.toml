@@ -86,6 +86,7 @@ style = "Light Italic"
 
 [font.normal]
 family = "CaskaydiaCove Nerd Font Mono"
+style = "Regular"
 
 [font.offset]
 x = 0
