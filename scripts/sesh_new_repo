@@ -5,7 +5,7 @@ function sesh_new_repo() {
 
     GITHUB_USERNAME="$(git config user.name)"
     github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
-    github_uers=("${github_users[@],,}")  # Convert array elements to lowercase
+    github_users=("${github_users[@],,}")  # Convert array elements to lowercase
 
     github_user="$( \
         printf "%s\n" "${github_users[@]}" | \
