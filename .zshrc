@@ -22,6 +22,7 @@ plug "romkatv/powerlevel10k"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
+
 ### ZSH Options
 setopt histignorealldups sharehistory
 # Keep 1000 lines of history within the shell and save it to ~/.zsh_history:
@@ -97,6 +98,7 @@ add_to_path "/home/anthony/.local/bin"
 add_to_path "/snap/bin"
 add_to_path "/opt/nvim-linux64/bin"
 add_to_path "/home/anthony/scripts"
+add_to_path "/home/anthony/scripts/installers/"
 add_to_path "/usr/local/go/bin"
 add_to_path "/usr/local/cuda-12.5/bin"
 
@@ -194,6 +196,11 @@ function y() {
     fi
     rm -f -- "$tmp"
 }
+
+# felvin-search/token-count: cli tool for counting tokens
+alias tcf='token-count --model_name "gpt-4" --file'
+alias tcd='token-count --model_name "gpt-4" --directory'
+alias tct='token-count --model_name "gpt-4" --text'
 
 # Working with Git
 alias sa='ssh-add ~/.ssh/github_ed25519.pub'
