@@ -45,7 +45,7 @@ format_and_sort() {
            print repo, flag, branch, $0
          }' \
   | sort -t $'\t' -k1,1 -k2,2n -k3,3 \
-  | cut -f4-
+  | cut -f4- # Output only the formatted line and the original dir (tab separated)
 }
 
 main() {
@@ -57,13 +57,43 @@ main() {
   local repos
   repos="$(list_code_repos | format_and_sort)"
 
-  # 3. Combine sessions + repos, pipe to gum filter, then connect
-  sesh connect "$(
+  # 3. Combine sessions + repos, pipe to gum filter
+  local selected_sesh
+  selected_sesh=$(
     {
       printf "%s\n" "$sessions"
       printf "%s\n" "$repos"
-    } | gum filter --limit 1 --placeholder 'Pick a session' --height 50 --width 30 --prompt='🔎 '
-  )"
+    } | gum filter --limit 1 --placeholder 'Pick a session' --height 50 --width 40 --prompt='🔎 ' --header="Sesh Selector" --header.foreground 3
+  )
+
+  # 5. Connect to the selected session
+  sesh connect "$selected_sesh"
+
+  # 6. If the selection was a formatted repo (contains '/' and starts with ' '),
+  #    rename the tmux session by removing the ' ' prefix.
+  #    We check specifically for the prefix now.
+  if [[ "$selected_sesh" == */* && "$selected_sesh" == " "* ]]; then
+    echo "The selected session is a repo, so we need to rename it."
+    # Remove the " " prefix to get the desired final session name
+    local target_name="${selected_sesh#" "}"
+
+    echo "Detected repo selection: '$selected_sesh'. Attempting rename to: '$target_name'"
+
+    # Use tmux rename-session.
+    # The '-t "$selected_sesh"' targets the session that should have just been
+    # created or connected to by 'sesh connect' using the *original* selected name.
+    if tmux rename-session "$target_name"; then
+      echo "Session successfully renamed to '$target_name'."
+      # Update the variable if you need the new name later in the script
+      selected_sesh="$target_name"
+    else
+      echo "Error: Failed to rename session '$selected_sesh' to '$target_name'." >&2
+      # Consider how to handle this error - maybe exit, maybe continue?
+    fi
+  else
+    echo "Selected '$selected_sesh'. No rename needed or condition not met."
+  fi
+
 }
 
 main "$@"

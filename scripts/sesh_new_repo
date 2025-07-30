@@ -1,5 +1,6 @@
 #!/bin/bash
 
+
 # fzf fuzzy search of git repositories, then clone
 function sesh_new_repo() {
 
@@ -9,7 +10,7 @@ function sesh_new_repo() {
 
     github_user="$( \
         printf "%s\n" "${github_users[@]}" | \
-        gum filter --limit 1 --placeholder 'Pick a GitHub username or organization...' --height 50 --prompt='🐈‍⬛'
+        gum filter --limit 1 --placeholder 'Pick a GitHub username or organization...' --height 50 --prompt='👤'
     )"
 
     if [[ -n $github_user ]]; then
@@ -22,8 +23,15 @@ function sesh_new_repo() {
               sesh connect $github_user_dir/$repo_dir
        else
           template=$( \
-              (gh repo list anthonyokc --json name,isTemplate --jq '.[] | select(.isTemplate) | .name') | \
-              gum filter --limit 1 --placeholder 'Pick a repo template' --height 50 --prompt='📚'
+              { printf '%s\n' "None"; \
+                printf '%s\n' openjusticeok anthonyokc | \
+                xargs -I{} gh repo list {} \
+                        --json nameWithOwner,isTemplate \
+                        --jq '.[] | select(.isTemplate) | .nameWithOwner' | \
+                sort -u; } | \
+              gum filter --limit 1 \
+                        --placeholder 'Pick a repo template' \
+                         --height 50 --prompt '📚 '
           )
           mkdir -p "$github_user_dir"  # Create directory for the username if it doesn't exist
 
@@ -36,7 +44,7 @@ function sesh_new_repo() {
           if [ "$repo_type" == "🔒 Private" ]; then
               gh repo create $github_user/$repo_dir --private --template $template
               sleep 2
-          else
+          if [ "$repo_type" == "🌐 Public" ]; then
               gh repo create $github_user/$repo_dir --public --template $template
               sleep 2
           fi

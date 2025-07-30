@@ -6,7 +6,7 @@ function fhub() {
             (cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
             tee $fzf_git_cache | \
             nauniq | \
-            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' \
+            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' --header="GitHub Search Tool" --header.foreground 5\
     )"
 
     if [[ -n $repo ]]; then
