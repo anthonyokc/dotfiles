@@ -3,7 +3,7 @@
 [user]
     email = anthonyfloresokc@gmail.com
     name = anthonyokc
-    signingkey = /home/anthony/.ssh/github_ed25519.pub
+    signingkey = /Users/anthonyflores/.ssh/github_ed25519.pub
 [init]
     defaultBranch = main
 [gpg]
@@ -14,3 +14,11 @@
     rebase = true
 [alias]
    clone-for-worktrees = "!sh $HOME/scripts/git-clone-bare-for-worktrees.sh"
+[core]
+    pager = delta
+[interactive]
+    diffFilter = delta --color-only
+[delta]
+    navigate = true
+    side-by-side = true
+    line-numbers = true
