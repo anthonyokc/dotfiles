@@ -238,7 +238,7 @@ alias da='dotfiles add -u'
 alias dr='dotfiles restore --staged'
 alias dc='dotfiles commit -m'
 alias ds='dotfiles status'
-alias dd='dotfiles diff HEAD~1'
+alias dd='dotfiles diff HEAD'
 alias dp='dotfiles-push'
 
 # tmux bare git repo
