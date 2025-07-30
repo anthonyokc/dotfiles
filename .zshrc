@@ -187,6 +187,10 @@ alias t='tmux new-session -s "Home 🏠"'
 alias ta='tmux attach'
 alias tk='tmux kill-server'
 
+# Python
+alias python='python3' # From homebrew
+
+
 # yazi
 function y() {
     local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
@@ -231,8 +235,10 @@ alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
 alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
 alias dotfiles-pull='dotfiles pull git@github.com:AnthonyOKC/dotfiles.git'
 alias da='dotfiles add -u'
+alias dr='dotfiles restore --staged'
 alias dc='dotfiles commit -m'
 alias ds='dotfiles status'
+alias dd='dotfiles diff HEAD~1'
 alias dp='dotfiles-push'
 
 # tmux bare git repo
@@ -342,18 +348,5 @@ alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo
 if [ -f ~/.zsh_aliases ]; then
     . ~/.zsh_aliases
 fi
-
-### Setting up GWSL
-# Comment out the following lines if you are not using GWSL
-# export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}'):0.0 #GWSL
-# export PULSE_SERVER=tcp:$(cat /etc/resolv.conf | grep nameserver | awk '{print $2; exit;}') #GWSL
-#
-# export GDK_SCALE=1 #GWSL
-# export QT_SCALE_FACTOR=1 #GWSL
-#
-# export LIBGL_ALWAYS_INDIRECT=1 #GWSL
-
-### Setting up WSLg
-export GDK_DPI_SCALE=1.5 # My monitor works best with 150% DPI Scaling
 
 # xrdb -load ~/.Xresources
