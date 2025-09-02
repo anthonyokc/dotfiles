@@ -1,4 +1,5 @@
 #!/bin/bash
+# flconesesh - Clone a GitHub repository using fzf and gum, then connect with sesh
 
 # fzf fuzzy search of git repositories, then clone
 function fclonesesh() {
@@ -9,42 +10,54 @@ function fclonesesh() {
         echo "🎉 Success Added GitHub SSH key to agent!"
     fi
 
-    # TODO: Add "Other" option to clone from a URL inputted by the user
-    repo="$( \
-        (cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
+    selection="$( \
+        (echo "Other"; cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
         tee $fzf_git_cache | \
         nauniq | \
         gum filter --limit 1 --placeholder 'Clone a repo...' --height 50 --prompt='🤖 ' --header="GitHub Repo Clone Tool" --header.foreground 5
 
     )"
 
-    if [[ -n $repo ]]; then
-       username="${repo%%/*}"  # Extracts the username part before '/'
-       repo_dir="$HOME/code/$repo"
+    if [[ -z $selection ]]; then
+        return
+    fi
 
-       if [ -d "$repo_dir" ]; then
-          gum spin --title "Directory $repo_dir already exists. Connecting..." -- \
-              sesh connect $repo_dir
+    if [[ "$selection" == "Other" ]]; then
+        repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
+        repo="${repo## }"; repo="${repo%% }"
+        if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
+            gum style --foreground 1 "Invalid format. Expected: user/repo (e.g., jalvesaq/nvimcom)."
+            return 1
+        fi
+    else
+        repo="$selection"
+    fi
+
+    username="${repo%%/*}"  # Extracts the username part before '/'
+    repo_dir="$HOME/code/$repo"
+
+    if [ -d "$repo_dir" ]; then
+       gum spin --title "Directory $repo_dir already exists. Connecting..." -- \
+           sesh connect "$repo_dir"
+    else
+       mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
+
+       # Add gum select to choose between Normal Git Repo and Bare Git Repo
+       repo_types=("Bare Git Repo" "Normal Git Repo")
+       repo_type=$( \
+           printf "%s\n" "${repo_types[@]}" | \
+           gum filter --limit 1 --placeholder "Choose a repo type" --height 50
+       )
+
+       if [[ $repo_type == "Normal Git Repo" ]]; then
+           gum spin --title "Cloning from GitHub into $repo_dir" -- \
+               git clone git@github.com:$repo.git "$repo_dir"
        else
-          mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
-
-          # Add gum select to choose between Normal Git Repo and Bare Git Repo
-          repo_types=("Bare Git Repo" "Normal Git Repo")
-          repo_type=$( \
-              printf "%s\n" "${repo_types[@]}" | \
-              gum filter --limit 1 --placeholder "Choose a repo type" --height 50
-          )
-
-          if [[ $repo_type == "Normal Git Repo" ]]; then
-              gum spin --title "Cloning from GitHub into $repo_dir" -- \
-                  git clone git@github.com:$repo.git $repo_dir
-          else
-              gum spin --title "Cloning from GitHub into $repo_dir" -- \
-                  git-clone-bare-for-worktrees.sh git@github.com:$repo.git $repo_dir
-          fi
-
-          sesh connect $repo_dir
+           gum spin --title "Cloning from GitHub into $repo_dir" -- \
+               git-clone-bare-for-worktrees.sh git@github.com:$repo.git "$repo_dir"
        fi
+
+       sesh connect "$repo_dir"
     fi
 }
 

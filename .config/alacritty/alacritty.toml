@@ -42,7 +42,7 @@ white = "0xd8dee9"
 yellow = "0xfac863"
 
 [colors.cursor]
-cursor = "0xc0c5ce"
+cursor = "#fac863"
 text = "0x1b2b34"
 
 [colors.normal]

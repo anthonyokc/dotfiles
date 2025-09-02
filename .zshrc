@@ -8,7 +8,6 @@
 # My Commands
 # My Aliases
 # My Functions
-# GWSL
 
 ### ZSH Plugins
 # Created by Zap installer
@@ -140,6 +139,7 @@ set enable-bracketed-paste Off
 # source /usr/share/autojump/autojump.sh
 source <(fzf --zsh) # Set up fzf key bindings and fuzzy completion
 
+### Environment Variables
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
@@ -147,6 +147,8 @@ export NVM_DIR="$HOME/.nvm"
 export OPENSSL_CONF=/etc/ssl  # For phantomjs
 export SUDO_EDITOR=$(which nvim)
 export EDITOR=$(which nvim)
+# Go
+export GOPATH="$HOME/.cache/go" # Go module cache directory for downloaded modules and compiled package objects
 
 ## Autostart
 eval "$(zoxide init zsh)"
@@ -168,10 +170,30 @@ function treee() {
 alias update='brew update && sudo apt update && apt list --upgradable'
 alias upgrade='sudo apt upgrade && sudo apt autoremove && brew upgrade'
 
+# Nix commands
+alias ng='noglob'
+alias n='ng nix'
+alias nb='ng nix build'
+alias nd='ng nix develop'
+alias nf='ng nix flake'
+alias np='ng nix profile'
+function npa() {
+    ng nix profile add nixpkgs#$1
+}
+alias npA='ng nix profile add'
+alias npr='ng nix profile remove'
+alias npl='ng nix profile list'
+alias npu='ng nix profile upgrade'
+alias ns='ng nix shell'
+alias nr='ng nix run'
+alias nS='ng nix search'
+alias nU='sudo determinate-nixd upgrade'
+
+
 # ssh server monitoring/connections
 alias sl='sudo tail -f /var/log/auth.log'
-alias ss='sudo systemctl status ssh'
-alias sr='sudo systemctl restart ssh'
+alias sshs='sudo systemctl status ssh'
+alias sshr='sudo systemctl restart ssh'
 
 # networking
 alias i='ip -br a'
@@ -250,6 +272,68 @@ alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 
 # bat
 alias bat=batcat
+
+# wc functions
+# Count lines in files of a certain type in a directory
+function linecount ()
+{
+    local current_dir="$(pwd)"
+    local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
+    local pattern="${2:-*.R}" # Default to *.R if no second argument is provided
+    local sort_column="number_of_lines file -n -r" # Default sort by number of lines
+
+    for arg in "${@:3}"; do
+        if [[ "$arg" == "--sort-files" ]]; then
+            sort_column="file" # Sort by file name
+        fi
+    done
+
+    nu_command="\$in | detect columns | sort-by $sort_column"
+
+    find $file_path -name $pattern -print0 |
+        xargs -0 wc -l |
+        sed "s|$file_path||" |
+        column -t -N "number_of_lines,file" |
+        nu --stdin --commands "$nu_command"
+
+}
+
+# file functions
+# Count MIME types in files of a certain type in a directory
+function count_mimes() {
+    local current_dir="$(pwd)"
+    local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
+    local pattern="*.R" # Default to *.R if no second argument is provided
+    local show_files=0 # Default to not showing files
+
+    for arg in "${@:2}"; do
+       if [[ "$arg" == "--show-files" ]]; then
+           show_files=1
+        else
+           pattern="$arg"                     # anything else is the glob
+        fi
+    done
+
+    if [ "$show_files" -eq 1 ]; then
+      fields='1,2,3'
+      column_names='count,file,mime_type,mime_encoding'
+    else
+      fields='2,3'
+      column_names='count,mime_type,mime_encoding'
+    fi
+
+    find "$file_path" -name "$pattern" |
+        xargs file --mime |
+        sed 's|.*/main/||' |
+        sed 's|: \+|\t|' |
+        sed 's|; \+|\t|' |
+        cut -f"$fields" |
+        uniq -c |
+        sort -r |
+        column -t -N "$column_names" |
+        nu --stdin --commands '$in | detect columns'
+}
+
 
 ###  Preset Configuration
 # ~/.bashrc: executed by bash(1) for non-login shells.
@@ -349,4 +433,3 @@ if [ -f ~/.zsh_aliases ]; then
     . ~/.zsh_aliases
 fi
 
-# xrdb -load ~/.Xresources

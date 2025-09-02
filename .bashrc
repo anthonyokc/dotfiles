@@ -1,7 +1,7 @@
 ### My Configs
 ## My Commands
 set enable-bracketed-paste Off
-source /usr/share/autojump/autojump.sh
+# source /usr/share/autojump/autojump.sh
 
 # Only works if sudo visudo add a NOPASSWD exception for this file
 sudo ~/.config/xfce4/ICE-unix-bug-fix.sh

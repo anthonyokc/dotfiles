@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 # fzf fuzzy search of git repositories, then clone
 function sesh_new_repo() {
 
@@ -10,7 +9,9 @@ function sesh_new_repo() {
 
     github_user="$( \
         printf "%s\n" "${github_users[@]}" | \
-        gum filter --limit 1 --placeholder 'Pick a GitHub username or organization...' --height 50 --prompt='👤'
+        gum filter \
+            --placeholder 'Pick a GitHub username or organization...' \
+            --limit 1 --height 50 --prompt='👤 '
     )"
 
     if [[ -n $github_user ]]; then
@@ -18,19 +19,19 @@ function sesh_new_repo() {
 
        repo_dir="$(gum input --placeholder "What's the name of the new repo?" --prompt="📝 ")"
 
-       if [ -d "$github_user_dir/$repo_dir" ]; then
+       if [[ -d "$github_user_dir/$repo_dir" && "$repo_dir" != "" ]]; then
           gum spin --title "Directory $github_user_dir/$repo_dir already exists. Connecting..." -- \
               sesh connect $github_user_dir/$repo_dir
-       else
+       elif [[ "$repo_dir" != "" ]]; then
+          # Get templates and add a "None" option
           template=$( \
-              { printf '%s\n' "None"; \
-                printf '%s\n' openjusticeok anthonyokc | \
-                xargs -I{} gh repo list {} \
-                        --json nameWithOwner,isTemplate \
-                        --jq '.[] | select(.isTemplate) | .nameWithOwner' | \
-                sort -u; } | \
+              (echo "None"; printf '%s\0' openjusticeok anthonyokc |
+              xargs -I{} -0 -n1 -P2 gh repo list {} \
+                      --topic template --json nameWithOwner \
+                      --jq '.[].nameWithOwner' |
+              sort -u) |
               gum filter --limit 1 \
-                        --placeholder 'Pick a repo template' \
+                         --placeholder 'Pick a repo template or None' \
                          --height 50 --prompt '📚 '
           )
           mkdir -p "$github_user_dir"  # Create directory for the username if it doesn't exist
@@ -41,11 +42,21 @@ function sesh_new_repo() {
               gum filter --limit 1 --placeholder 'Pick repo type...' --height 50
           )
 
-          if [ "$repo_type" == "🔒 Private" ]; then
-              gh repo create $github_user/$repo_dir --private --template $template
+          # Create repo with or without template based on selection
+          if [[ "$repo_type" == "🔒 Private" ]]; then
+              if [ "$template" == "None" ]; then
+                  gh repo create $github_user/$repo_dir --private
+              else
+                  gh repo create $github_user/$repo_dir --private --template $template
+              fi
               sleep 2
-          if [ "$repo_type" == "🌐 Public" ]; then
-              gh repo create $github_user/$repo_dir --public --template $template
+          fi
+          if [[ "$repo_type" == "🌐 Public" ]]; then
+              if [[ "$template" == "None" ]]; then
+                  gh repo create $github_user/$repo_dir --public
+              else
+                  gh repo create $github_user/$repo_dir --public --template $template
+              fi
               sleep 2
           fi
 
@@ -72,6 +83,8 @@ function sesh_new_repo() {
           fi
 
           sesh connect $github_user_dir/$repo_dir
+       else
+          gum spin --title "No repo name provided. Exiting..." -- sleep 2
        fi
     fi
 }

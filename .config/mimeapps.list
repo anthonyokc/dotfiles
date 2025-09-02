@@ -1,3 +1,12 @@
+# This file is written by xdg-mime when setting default applications
+# It lists default applications for MIME types
+
+# Example: text/plain=gedit.desktop;vim.desktop;
+# The first application gedit is the default for opening plain text files, the second, vim, is a fallback
+
+# The format is documented at http://www.freedesktop.org/Standards/mime-app
+
+# Added Associations are all applications associated with a MIME type (both default and non-default)
 [Added Associations]
 application/x-theme=org.xfce.mousepad.desktop;
 application/x-desktop=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;org.xfce.mousepad.desktop;
@@ -6,15 +15,20 @@ application/x-shellscript=userapp-bash -c '%f'-WE2971.desktop;com.alacritty.Alac
 text/plain=vim.desktop;userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;userapp-bach -c 'vim %f'-CXQ381.desktop;
 text/x-matlab=vim.desktop;
 application/x-yaml=rstudio.desktop;
+image/png=userapp-feh-73YYB3.desktop;
 
+# Default Applications are the preferred applications launched for a MIME type (usually the first in the Added Associations list)
 [Default Applications]
 text/plain=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
 application/x-shellscript=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
 application/x-yaml=rstudio.desktop
+image/png=userapp-feh-73YYB3.desktop
+# These setup a "custom Brave Browser" so that it opens the Windows Brave Browser while using WSL
 text/html=custom-brave-browser.desktop
 x-scheme-handler/http=custom-brave-browser.desktop
 x-scheme-handler/https=custom-brave-browser.desktop
 x-scheme-handler/about=custom-brave-browser.desktop
 x-scheme-handler/unknown=custom-brave-browser.desktop
 
+# Removed Associations are applications that were previously associated with a MIME type but have been removed
 [Removed Associations]

@@ -2,17 +2,37 @@
 
 # fzf fuzzy search of git repositories, then open in web browser
 function fhub() {
-    repo="$( \
-            (cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
+    selection="$(
+            (
+                echo "Other";
+                cat $fzf_git_cache 2>/dev/null
+                gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG
+            ) | \
             tee $fzf_git_cache | \
             nauniq | \
-            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' --header="GitHub Search Tool" --header.foreground 5\
+            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' --header="GitHub Search Tool" --header.foreground 5
     )"
 
-    if [[ -n $repo ]]; then
-       echo "Opening '$repo' in Web Browser"
-       hub browse $repo
+    if [[ -z $selection ]]; then
+        return
     fi
+
+    if [[ "$selection" == "Other" ]]; then
+        repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
+        # Trim spaces
+        repo="${repo## }"
+        repo="${repo%% }"
+        # Basic validation: must contain exactly one slash and no spaces
+        if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
+            gum style --foreground 1 "Invalid format. Expected: user/repo (e.g., jalvesaq/nvimcom)."
+            return 1
+        fi
+    else
+        repo="$selection"
+    fi
+
+    echo "Opening '$repo' in Web Browser"
+    hub browse "$repo"
 }
 
 fhub
