@@ -262,6 +262,7 @@ alias dc='dotfiles commit -m'
 alias ds='dotfiles status'
 alias dd='dotfiles diff HEAD'
 alias dp='dotfiles-push'
+alias dl='dotfiles log --oneline'
 
 # tmux bare git repo
 alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
