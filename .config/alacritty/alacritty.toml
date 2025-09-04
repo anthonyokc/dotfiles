@@ -73,7 +73,7 @@ render_timer = false
 size = 16
 
 [font.bold]
-family = "CaskaydiaCove Nerd Font Mono"
+family = "BerkeleyMono Nerd Font"
 style = "Bold"
 
 [font.glyph_offset]
@@ -81,11 +81,11 @@ x = 0
 y = 0
 
 [font.italic]
-family = "CaskaydiaCove Nerd Font Mono"
+family = "BerkeleyMono Nerd Font"
 style = "Light Italic"
 
 [font.normal]
-family = "CaskaydiaCove Nerd Font Mono"
+family = "BerkeleyMono Nerd Font"
 style = "Regular"
 
 [font.offset]

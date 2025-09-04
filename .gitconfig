@@ -1,9 +1,8 @@
 [user]
     # User information for commits
     email = anthonyfloresokc@gmail.com
-    name = Anthony Flores
-    # SSH key for signing commits
-    signingkey = /home/anthony/.ssh/github_ed25519.pub
+    name = anthonyokc
+    signingkey = /Users/anthonyflores/.ssh/github_ed25519.pub
 [init]
     # Set default branch name to main when initializing a new repository
     defaultBranch = main
