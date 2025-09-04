@@ -8,7 +8,7 @@ duration = 0
 draw_bold_text_with_bright_colors = false
 
 [[colors.indexed_colors]]
-color = "0xf99157"
+color = "0x1b2b34"
 index = 16
 
 [[colors.indexed_colors]]
@@ -32,8 +32,8 @@ color = "0xcdd3de"
 index = 21
 
 [colors.bright]
-black = "0x65737e"
-blue = "0x6699cc"
+black = "0xfac863"
+blue = "0xfac863"
 cyan = "0x5fb3b3"
 green = "0x99c794"
 magenta = "0xc594c5"
@@ -42,7 +42,7 @@ white = "0xd8dee9"
 yellow = "0xfac863"
 
 [colors.cursor]
-cursor = "#fac863"
+cursor = "0xfac863"
 text = "0x1b2b34"
 
 [colors.normal]
@@ -56,12 +56,18 @@ white = "0xc0c5ce"
 yellow = "0xfac863"
 
 [colors.primary]
-background = "0x1b2b34"
+background = "0x1b2b36"
 foreground = "0xc0c5ce"
 
 [cursor]
-style = "Block"
 unfocused_hollow = true
+
+[cursor.style]
+shape = "Block"
+blinking = "Off"
+
+[cursor.vi_mode_style]
+shape = "Block"
 
 [debug]
 log_level = "OFF"
