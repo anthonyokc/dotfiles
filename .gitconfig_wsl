@@ -1,0 +1,2 @@
+[user]
+    signingkey = home/anthony/.ssh/github_ed25519.pub
