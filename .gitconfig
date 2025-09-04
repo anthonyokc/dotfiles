@@ -28,8 +28,12 @@
   pager = delta
   editor = nvim
 [interactive]
-  diffFilter = delta --color-only --features=interactive
+    diffFilter = delta --color-only
+[includeIf "gitdir:/Users/anthonyflores/**"]
+    path = /Users/anthonyflores/.config/delta/themes/catppuccin.gitconfig
+    # TODO: Add path for mac delta config
 [delta]
+    features = catppuccin-mocha
     navigate = true
     side-by-side = true
     line-numbers = true
