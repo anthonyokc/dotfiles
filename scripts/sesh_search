@@ -1,4 +1,6 @@
 #!/bin/bash
+# sesh_search - Search and connect to existing sesh sessions or create new ones from code repos
+set -euo pipefail
 
 # List all existing sesh sessions
 list_sesh() {
@@ -7,18 +9,17 @@ list_sesh() {
 
 # Find all code directories under ~/code, accounting for multiple Git worktrees
 list_code_repos() {
-  find ~/code -mindepth 2 -maxdepth 2 -type d | while read -r dir; do
-    if [ -d "$dir/.git" ]; then
-      # If it has multiple worktrees, list them (except the first line)
-      if [ "$(git --git-dir="$dir/.git" worktree list 2>/dev/null | wc -l)" -gt 1 ]; then
-        git --git-dir="$dir/.git" worktree list | tail -n +2 | awk '{print $1}'
+  fd -td . ~/code --min-depth 2 --max-depth 2 |
+    xargs -n1 -P"$(nproc)" bash -c '
+      dir="${1%/}";
+      if [ -d "$dir/.git/worktrees" ]; then
+        for wt in "$dir"/*; do
+          echo $wt
+        done
       else
         echo "$dir"
       fi
-    else
-      echo "$dir"
-    fi
-  done
+    ' _
 }
 
 # Convert directory paths to your icon-based format, then sort by:
@@ -26,8 +27,8 @@ list_code_repos() {
 #   2) main/master branches first (flag=0), everything else (flag=1)
 #   3) Branch name
 format_and_sort() {
-  sed 's|^.*/code/[[:alnum:]]*/| |' \
-  | awk 'BEGIN { OFS="\t" }
+  sed 's|^.*/code/[[:alnum:]]*/| |' |
+    awk 'BEGIN { OFS="\t" }
          {
            # Original line might look like: " reponame/branch"
            original = $0
@@ -43,9 +44,9 @@ format_and_sort() {
 
            # We store: [repo] [flag] [branch] [original line]
            print repo, flag, branch, $0
-         }' \
-  | sort -t $'\t' -k1,1 -k2,2n -k3,3 \
-  | cut -f4- # Output only the formatted line and the original dir (tab separated)
+         }' |
+    sort -t $'\t' -k1,1 -k2,2n -k3,3 |
+    cut -f4- # Output only the formatted line and the original dir (tab separated)
 }
 
 main() {

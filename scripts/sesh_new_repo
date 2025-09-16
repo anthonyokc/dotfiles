@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 # fzf fuzzy search of git repositories, then clone
 function sesh_new_repo() {

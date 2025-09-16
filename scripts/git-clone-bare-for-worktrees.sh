@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # Examples of call:
 # git-clone-bare-for-worktrees git@github.com:name/repo.git

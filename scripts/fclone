@@ -1,5 +1,6 @@
 #!/bin/bash
 # fclone: Clone a GitHub repository using fzf and gum
+set -euo pipefail
 
 # fzf fuzzy search of git repositories, then clone
 function fclone() {

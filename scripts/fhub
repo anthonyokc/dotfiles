@@ -1,24 +1,66 @@
-#!/usr/bin/zsh
+#!/bin/bash
+# fhub: fzf fuzzy search of git repositories, then open in web browser
+set -euo pipefail
 
-# fzf fuzzy search of git repositories, then open in web browser
 function fhub() {
+    # Start GitHub API search in background
+    temp_fresh_results=$(mktemp)
+    # Ensure temp file is removed on exit
+    {
+        $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG > "$temp_fresh_results" 2>/dev/null &
+    }
+    # Capture background process ID to manage it later
+    api_pid=$!
+
+    # Show immediate options (Other + cached repos) without waiting for API
+    immediate_options=$(
+        (
+            echo "Other"
+            echo "🔄 Search fresh repos..."
+            cat $fzf_git_cache 2>/dev/null
+        ) | nauniq
+    )
+
+    # Let user select from immediate options
     selection="$(
+        echo "$immediate_options" | \
+        gum filter --limit 1 --placeholder 'Open repo in GitHub (or search fresh)' --height 50 --prompt='🌐 ' --header="GitHub Search Tool" --header.foreground 5
+    )"
+
+    # If user selected "Search fresh repos", wait for API and show full results
+    if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
+        # Wait for background API call to complete
+        gum spin --title "Searching for GitHub Repos..." -- pid $api_pid
+
+        selection="$(
             (
                 echo "Other";
                 cat $fzf_git_cache 2>/dev/null
-                gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG
+                cat "$temp_fresh_results" 2>/dev/null
             ) | \
             tee $fzf_git_cache | \
             nauniq | \
-            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' --header="GitHub Search Tool" --header.foreground 5
-    )"
+            gum filter --limit 1 --placeholder 'Open repo in GitHub' --height 50 --prompt='🌐 ' --header="GitHub Search Tool (Fresh Results)" --header.foreground 5
+        )"
+    else
+        # Clean up background process if user didn't wait for it
+        kill $api_pid 2>/dev/null
+    fi
 
+    # Clean up temp file
+    rm -f "$temp_fresh_results"
+
+    # If no selection made, exit
     if [[ -z $selection ]]; then
         return
     fi
 
+    # If user selected "Other", prompt for manual repo input
     if [[ "$selection" == "Other" ]]; then
         repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
+        if [[ -z "$repo" ]]; then
+            return
+        fi
         # Trim spaces
         repo="${repo## }"
         repo="${repo%% }"

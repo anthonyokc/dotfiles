@@ -1,5 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # flconesesh - Clone a GitHub repository using fzf and gum, then connect with sesh
+set -euo pipefail
 
 # fzf fuzzy search of git repositories, then clone
 function fclonesesh() {
@@ -10,13 +11,60 @@ function fclonesesh() {
         echo "🎉 Success Added GitHub SSH key to agent!"
     fi
 
-    selection="$( \
-        (echo "Other"; cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
-        tee $fzf_git_cache | \
-        nauniq | \
-        gum filter --limit 1 --placeholder 'Clone a repo...' --height 50 --prompt='🤖 ' --header="GitHub Repo Clone Tool" --header.foreground 5
+    # Start GitHub API search in background
+    temp_fresh_results=$(mktemp)
+    # Ensure temp file is removed on exit
+    {
+        $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG > "$temp_fresh_results" 2>/dev/null &
+    }
+    # Capture background process ID to manage it later
+    api_pid=$!
 
+    # Show immediate options (Other + cached repos) without waiting for API
+    immediate_options=$(
+        (
+            echo "Other"
+            echo "🔄 Search fresh repos..."
+            cat $fzf_git_cache 2>/dev/null
+        ) | nauniq
+    )
+
+    # Let user select from immediate options
+    selection="$(
+        echo "$immediate_options" | \
+        gum filter --limit 1 --placeholder 'Clone a repo...' --height 50 --prompt='🤖 ' --header="GitHub Repo Clone Tool" --header.foreground 5
     )"
+
+    # If user selected "Search fresh repos", wait for API and show full results
+    if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
+        # Wait for background API call to complete
+        gum spin --title "Searching for GitHub Repos..." -- pid $api_pid
+
+        selection="$( \
+            (
+              echo "Other";
+              cat $fzf_git_cache 2>/dev/null;
+              cat "$temp_fresh_results" 2>/dev/null
+            ) | \
+            tee $fzf_git_cache | \
+            nauniq | \
+            gum filter --limit 1 --placeholder 'Clone a repo...' --height 50 --prompt='🤖 ' --header="GitHub Repo Clone Tool" --header.foreground 5
+
+        )"
+    else
+        # Clean up background process if user didn't wait for it
+        kill $api_pid 2>/dev/null
+    fi
+
+    # Clean up temp file
+    rm -f "$temp_fresh_results"
+
+    # If no selection made, exit
+    if [[ -z $selection ]]; then
+        return
+    fi
+
+    # !!!!!!!!!!!
 
     if [[ -z $selection ]]; then
         return
