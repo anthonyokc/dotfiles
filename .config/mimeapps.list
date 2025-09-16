@@ -6,8 +6,8 @@
 
 # The format is documented at http://www.freedesktop.org/Standards/mime-app
 
-# Added Associations are all applications associated with a MIME type (both default and non-default)
 [Added Associations]
+# Added Associations are all applications associated with a MIME type (both default and non-default)
 application/x-theme=org.xfce.mousepad.desktop;
 application/x-desktop=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop;org.xfce.mousepad.desktop;
 application/vnd.debian.binary-package=gdebi.desktop;org.gnome.Software.desktop;xarchiver.desktop;gnome-software-local-file.desktop;userapp-sudo sh -c "gdebi-gtk %f"-TD6Y11.desktop;
@@ -17,11 +17,12 @@ text/x-matlab=vim.desktop;
 application/x-yaml=rstudio.desktop;
 image/png=userapp-feh-73YYB3.desktop;
 
-# Default Applications are the preferred applications launched for a MIME type (usually the first in the Added Associations list)
 [Default Applications]
+# Default Applications are the preferred applications launched for a MIME type (usually the first in the Added Associations list)
 text/plain=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
 application/x-shellscript=userapp-alacritty -e bash -c "vim %f"-ZTJ581.desktop
 application/x-yaml=rstudio.desktop
+application/pdf=org.pwmt.zathura.desktop
 image/png=userapp-feh-73YYB3.desktop
 # These setup a "custom Brave Browser" so that it opens the Windows Brave Browser while using WSL
 text/html=custom-brave-browser.desktop
@@ -30,5 +31,5 @@ x-scheme-handler/https=custom-brave-browser.desktop
 x-scheme-handler/about=custom-brave-browser.desktop
 x-scheme-handler/unknown=custom-brave-browser.desktop
 
-# Removed Associations are applications that were previously associated with a MIME type but have been removed
 [Removed Associations]
+# Removed Associations are applications that were previously associated with a MIME type but have been removed
