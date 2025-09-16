@@ -232,6 +232,5 @@ plug "zsh-users/zsh-autosuggestions"
 # Syntax highlighting for the Z shell;
 # It colors the command line right before it's drawn
 # Must be last or it can break or override everything else.
-# plug "zsh-users/zsh-syntax-highlighting"
-plug "zdharma-continuum/fast-syntax-highlighting"
+plug "zsh-users/zsh-syntax-highlighting"
 
