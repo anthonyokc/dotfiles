@@ -183,7 +183,9 @@ source <(fzf --zsh)
 export ZSH_HIGHLIGHT_MAXLENGTH=200    # or 0 to disable on very long lines
 
 # ZSH Autosuggestions Configurations
+export ZSH_AUTOSUGGEST_STRATEGY=(history)  # lighter; no compsys query on each keystroke; add 'completion' for more suggestions from carapace, etc.
 export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=60 # max size of buffer to search for suggestions, 40-80 is recommended
+export ZSH_AUTOSUGGEST_USE_ASYNC=1 # reduce lag; compute suggestions via zsh async background worker. Keystrokes are never blocked. May cause out-of-order suggestions if typing very fast.
 
 ### Environment Variables 🌐
 export OPENSSL_CONF=/etc/ssl  # For phantomjs
