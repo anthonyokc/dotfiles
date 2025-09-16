@@ -1,42 +1,57 @@
+zmodload zsh/zprof
 ### This file includes
-# ZSH plugins
-# ZSH options
-# ZSH keybindings
-# ZSH completion
-# Path modifications
-# My Configs
-# My Commands
-# My Aliases
-# My Functions
+# ZSH Plugins 🔌
+# ZSH Options ⚙️
+# ZSH Keybindings ⌨️
+# ZSH Completion ⚡
+# Path Modifications 📁
+# My Configs 🌐
+# My Commands 🛠
+# My Aliases 🕵️
+# My Functions 🏭
+# Plugins continued! 🔌
 
-### ZSH Plugins
-# Created by Zap installer
+
+
+### ZSH Plugins 🔌
+# Initialize zap (Zsh plugin manager) and install plugins if not already installed
 [ -f "${XDG_DATA_HOME:-$HOME/.local/share}/zap/zap.zsh" ] && source "${XDG_DATA_HOME:-$HOME/.local/share}/zap/zap.zsh"
-plug "zsh-users/zsh-autosuggestions"
-bindkey '^k' autosuggest-execute
-bindkey '^j' autosuggest-accept
-plug "zap-zsh/supercharge"
-plug "zsh-users/zsh-syntax-highlighting"
-plug "romkatv/powerlevel10k"
+plug "romkatv/powerlevel10k" # A theme for Zsh
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+# Autosuggestions and syntax highlighting are located at the end of this file to avoid common conflicts/issues
 
 
-### ZSH Options
-setopt histignorealldups sharehistory
-# Keep 1000 lines of history within the shell and save it to ~/.zsh_history:
-HISTSIZE=1000
-SAVEHIST=1000
-HISTFILE=~/.zsh_history
 
-# Use vim keybindings
-bindkey -v
+### ZSH Options ⚙️
+# General shell options
+setopt glob_dots # Include hidden files in globbing, e.g., `ls *` will include files starting with a dot
+setopt histignorealldups # Ignore duplicated commands in history, keeping only the most recent
+setopt sharehistory # Share history between all sessions, so commands typed in one session are available in others
+setopt CORRECT # Enable command correction, e.g., if you type `gti` instead of `git`, it will suggest the correct command
+
+# ZLE (Zsh Line Editor) options,
+set enable-bracketed-paste off
+
+# Shell history options
+HISTSIZE=1000 # Number of history entries to keep in memory
+SAVEHIST=1000 # Number of history entries to save in the history file
+HISTFILE=~/.zsh_history # History file location
+HISTCONTROL=ignoreboth # Ignore duplicate lines or lines starting with a space in the history. See bash(1) for more options
+
+
+
+### ZSH Keybindings ⌨️
 export KEYTIMEOUT=1 # 10ms. ZSH uses the KEYTIMEOUT parameter to determine how long to wait (in hundredths of a second) for additional characters in sequence. Default is 0.4 seconds.
-bindkey '^E' backward-kill-word # Ctrl + ;
-bindkey '^H' backward-kill-word # Ctrl + Backspace
-bindkey "^[[1;3C" forward-word
-bindkey "^[[1;3D" backward-word
+bindkey '^E' backward-kill-word # Ctrl + ; to delete the previous word
+bindkey '^H' backward-kill-word # Ctrl + Backspace to delete the previous word
+bindkey "^[[1;3C" forward-word # Alt + Right Arrow
+bindkey "^[[1;3D" backward-word # Alt + Left Arrow
+bindkey '^k' autosuggest-execute # Ctrl + k to execute the whole suggestion
+bindkey '^j' autosuggest-accept # Ctrl + j to accept the whole suggestion
 
+# Vim keybindings in ZSH and cursor shape
+bindkey -v # Use vim keybindings
 # Change cursor shape for different vi modes.
 function zle-keymap-select {
   if [[ ${KEYMAP} == vicmd ]] ||
@@ -49,39 +64,48 @@ function zle-keymap-select {
     echo -ne '\e[5 q'
   fi
 }
-zle -N zle-keymap-select
+zle -N zle-keymap-select # call the function when the keymap is changed
 zle-line-init() {
     zle -K viins # initiate `vi insert` as keymap (can be removed if `bindkey -V` has been set elsewhere)
     echo -ne "\e[5 q"
 }
-zle -N zle-line-init
+zle -N zle-line-init # call the function when the line editor is initialized
 echo -ne '\e[5 q' # Use beam shape cursor on startup.
 preexec() { echo -ne '\e[5 q' ;} # Use beam shape cursor for each new prompt.
 
-### ZSH Completion
-# Use modern completion system
+
+
+### ZSH Completion ⚡
+# Enable command auto-completion, -U to not sort completions, -z to use zsh completion system
 autoload -Uz compinit
-compinit
+# Initialize the completion system and use a specific dump file to speed up loading
+# Otherwise, when two instances start there may be a race condition, and a
+# second dump file may be created, which slows down startup time and creates
+# clutter.
+compinit -C -d "$HOME/.zcompdump" # -C: trust dump; -d: fixed cache path
 
-zstyle ':completion:*' auto-description 'specify: %d'
-zstyle ':completion:*' completer _expand _complete _correct _approximate
-zstyle ':completion:*' format 'Completing %d'
-zstyle ':completion:*' group-name ''
-zstyle ':completion:*' menu select=2
-zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS}
-zstyle ':completion:*' list-colors ''
-zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s
-zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*'
-zstyle ':completion:*' menu select=long
-zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
-zstyle ':completion:*' use-compctl false
-zstyle ':completion:*' verbose true
+# Completion settings
+zstyle ':completion:*' auto-description 'specify: %d' # Show description of the command being completed
+zstyle ':completion:*' completer _expand _complete _correct _approximate # Order of completion methods
+zstyle ':completion:*' format 'Completing %d' # Format of the completion prompt
+zstyle ':completion:*' group-name '' # No group names, just list completions
+zstyle ':completion:*' menu select=2 # Use menu selection if there are 2 or more options
+zstyle ':completion:*:default' list-colors ${(s.:.)LS_COLORS} # Use LS_COLORS for coloring the completion list
+zstyle ':completion:*' list-colors '' # Disable list colors
+zstyle ':completion:*' list-prompt %SAt %p: Hit TAB for more, or the character to insert%s # Prompt when listing completions
+zstyle ':completion:*' matcher-list '' 'm:{a-z}={A-Z}' 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=* l:|=*' # Case-insensitive matching and other matching rules
+zstyle ':completion:*' menu select=long # Use menu selection for long lists
+zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s # Prompt when scrolling through completions
+zstyle ':completion:*' use-compctl false # Don't use compctl
+zstyle ':completion:*' verbose true # Verbose completion messages, e.g. "1 completion"
 
-zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
-zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd'
+# Completion for `kill` command
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31' # Color PIDs in red
+zstyle ':completion:*:kill:*' command 'ps -u $USER -o pid,%cpu,tty,cputime,cmd' # Command to list processes for completion
 
 
-### Path Modifications
+
+### Path Modifications 📁
 # Function: only adds to path if it's not already there
 # This way we can avoid duplicates in the PATH when sourcing this file multiple times
 # Usage: add_to_path "/path/to/add"
@@ -100,15 +124,9 @@ add_to_path "$HOME/scripts"
 add_to_path "$HOME/scripts/installers/"
 add_to_path "/usr/local/go/bin"
 add_to_path "/usr/local/cuda-12.5/bin"
+[[ -d $NPM_CONFIG_PREFIX/bin ]] && add_to_path "$NPM_CONFIG_PREFIX/bin"
+[[ -d $PYENV_ROOT/bin ]] && add_to_path "$PYENV_ROOT/bin"
 
-# Very Linux specific stuff here
-if [[ "$(uname)" == "Linux" ]]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" # Add Homebrew to PATH
-
-    export SSH_AUTH_SOCK="$XDG_RUNTIME_DIR/ssh-agent.socket" # For ssh-agent
-else
-    eval "$(/opt/homebrew/bin/brew shellenv)"
-fi
 
 # Test of a more general function that can be used for any path variable
 # add_to_any_path($1) {
@@ -133,278 +151,61 @@ add_to_ld_library_path() {
 add_to_ld_library_path "/usr/lib/wsl/lib"
 add_to_ld_library_path "/usr/local/cuda-12.5/lib64"
 
-### My Configs
-## My Commands
-set enable-bracketed-paste Off
-# source /usr/share/autojump/autojump.sh
-source <(fzf --zsh) # Set up fzf key bindings and fuzzy completion
 
-### Environment Variables
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
+### Autoload Various Tools ⚙️ (after path modifications)
+# Load zoxide, a smarter cd command
+# cd to any directory you have visited before with a single command
+# E.g., `z docs` to go to ~/Documents if you have been there before
+eval "$(zoxide init zsh)"
+
+# Load fnm, a fast Node.js version manager alternative to nvm.
+# This command:
+# 1. fnm env: Exports FNM_DIR and prepends to PATH so that the fnm binary can be found,
+  # and so fnm's active Node version is used because it's at the front of PATH.
+# 2. --use-on-cd --shell=zsh: Sets up shell integration so that fnm can automatically
+  # switch Node versions when you cd into a directory with a .nvmrc or .node-version file.
+  # When you 'cd' it searches and runs 'fnm use --silent' if it finds a version file.
+eval "$(fnm env --use-on-cd --shell=zsh)"
+
+# Load pyenv, a Python version manager
+# Install build dependencies first: https://github.com/pyenv/pyenv/wiki#suggested-build-environment
+eval "$(pyenv init - zsh)"
+
+# Load caraspace, a fast, multi-shell completion library and binary
+export CARAPACE_BRIDGES='zsh,fish,bash,inshellisense'   # optional, but nice
+source <(carapace _carapace)                            # registers all completers
+
+# Set up fzf key bindings and fuzzy completion
+source <(fzf --zsh)
+
+# ZSH Syntax Highlighting Configurations
+export ZSH_HIGHLIGHT_MAXLENGTH=200    # or 0 to disable on very long lines
+
+# ZSH Autosuggestions Configurations
+export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=60 # max size of buffer to search for suggestions, 40-80 is recommended
+
+### Environment Variables 🌐
 export OPENSSL_CONF=/etc/ssl  # For phantomjs
 export SUDO_EDITOR=$(which nvim)
 export EDITOR=$(which nvim)
 # Go
 export GOPATH="$HOME/.cache/go" # Go module cache directory for downloaded modules and compiled package objects
 
-## Autostart
-eval "$(zoxide init zsh)"
-
-### My Aliases
-alias zs='source ~/.zshrc'
-
-# some more ls aliases
-alias ll='lsd -alF'
-alias la='lsd -A'
-alias l='lsd'
-
-# File tree with plain hyphens
-function treee() {
-    tree --charset=ASCII | sed 's/|/ /g; s/`/-/g; s/+-/-/g; s/--/-/g; s/--/-/g'
-}
-
-# update/upgrade
-alias update='brew update && sudo apt update && apt list --upgradable'
-alias upgrade='sudo apt upgrade && sudo apt autoremove && brew upgrade'
-
-# Nix commands
-alias ng='noglob'
-alias n='ng nix'
-alias nb='ng nix build'
-alias nd='ng nix develop'
-alias nf='ng nix flake'
-alias np='ng nix profile'
-function npa() {
-    ng nix profile add nixpkgs#$1
-}
-alias npA='ng nix profile add'
-alias npr='ng nix profile remove'
-alias npl='ng nix profile list'
-alias npu='ng nix profile upgrade'
-alias ns='ng nix shell'
-alias nr='ng nix run'
-alias nS='ng nix search'
-alias nU='sudo determinate-nixd upgrade'
-
-
-# ssh server monitoring/connections
-alias sl='sudo tail -f /var/log/auth.log'
-alias sshs='sudo systemctl status ssh'
-alias sshr='sudo systemctl restart ssh'
-
-# networking
-alias i='ip -br a'
-
-# Vim
-alias v='nvim'
-alias vim='nvim'
-alias vf='nvim -c "FZF"'
-alias vz='nvim ~/.zshrc'
-
-# tmux
-alias t='tmux new-session -s "Home 🏠"'
-alias ta='tmux attach'
-alias tk='tmux kill-server'
-
-# Python
-alias python='python3' # From homebrew
-
-
-# yazi
-function y() {
-    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
-    yazi "$@" --cwd-file="$tmp"
-    if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
-        cd -- "$cwd"
-    fi
-    rm -f -- "$tmp"
-}
-
-# felvin-search/token-count: cli tool for counting tokens
-alias tcf='token-count --model_name "gpt-4" --file'
-alias tcd='token-count --model_name "gpt-4" --directory'
-alias tct='token-count --model_name "gpt-4" --text'
-
-# Working with Git
-alias sa='ssh-add ~/.ssh/github_ed25519.pub'
-alias ga='git add'
-alias gc='git commit -m'
-alias gca='git commit -am'
-alias gs='git status'
-alias gd='git diff'
-alias gco='git checkout'
-alias gb='git branch'
-alias gl='git log'
-alias gplf= 'git fetch --all; git reset --hard HEAD; git merge @{u}'
-alias gpl='git pull'
-alias gps='git push'
-alias gch='git checkout'
-alias gf='git fetch'
-function gcl() {
-    git clone git@github.com:$1.git
-}
-
-alias hb='hub browse'
-
-alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
-
-
-# Working with dotfiles
-alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
-alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
-alias dotfiles-pull='dotfiles pull git@github.com:AnthonyOKC/dotfiles.git'
-alias da='dotfiles add -u'
-alias dr='dotfiles restore --staged'
-alias dc='dotfiles commit -m'
-alias ds='dotfiles status'
-alias dd='dotfiles diff HEAD'
-alias dp='dotfiles-push'
-alias dl='dotfiles log --oneline'
-
-# tmux bare git repo
-alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
-
-# xfce4
-alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
-alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
-
-# bat
-alias bat=batcat
-
-# wc functions
-# Count lines in files of a certain type in a directory
-function linecount ()
-{
-    local current_dir="$(pwd)"
-    local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
-    local pattern="${2:-*.R}" # Default to *.R if no second argument is provided
-    local sort_column="number_of_lines file -n -r" # Default sort by number of lines
-
-    for arg in "${@:3}"; do
-        if [[ "$arg" == "--sort-files" ]]; then
-            sort_column="file" # Sort by file name
-        fi
-    done
-
-    nu_command="\$in | detect columns | sort-by $sort_column"
-
-    find $file_path -name $pattern -print0 |
-        xargs -0 wc -l |
-        sed "s|$file_path||" |
-        column -t -N "number_of_lines,file" |
-        nu --stdin --commands "$nu_command"
-
-}
-
-# file functions
-# Count MIME types in files of a certain type in a directory
-function count_mimes() {
-    local current_dir="$(pwd)"
-    local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
-    local pattern="*.R" # Default to *.R if no second argument is provided
-    local show_files=0 # Default to not showing files
-
-    for arg in "${@:2}"; do
-       if [[ "$arg" == "--show-files" ]]; then
-           show_files=1
-        else
-           pattern="$arg"                     # anything else is the glob
-        fi
-    done
-
-    if [ "$show_files" -eq 1 ]; then
-      fields='1,2,3'
-      column_names='count,file,mime_type,mime_encoding'
-    else
-      fields='2,3'
-      column_names='count,mime_type,mime_encoding'
-    fi
-
-    find "$file_path" -name "$pattern" |
-        xargs file --mime |
-        sed 's|.*/main/||' |
-        sed 's|: \+|\t|' |
-        sed 's|; \+|\t|' |
-        cut -f"$fields" |
-        uniq -c |
-        sort -r |
-        column -t -N "$column_names" |
-        nu --stdin --commands '$in | detect columns'
-}
-
-
-###  Preset Configuration
-# ~/.bashrc: executed by bash(1) for non-login shells.
-# see /usr/share/doc/bash/examples/startup-files (in the package bash-doc)
-# for examples
-
-# If not running interactively, don't do anything
-case $- in
-    *i*) ;;
-      *) return;;
-esac
-
-# don't put duplicate lines or lines starting with space in the history.
-# See bash(1) for more options
-HISTCONTROL=ignoreboth
-
-# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
-HISTSIZE=1000
-HISTFILESIZE=2000
-
-# If set, the pattern "**" used in a pathname expansion context will
-# match all files and zero or more directories and subdirectories.
-#shopt -s globstar
 
 # make less more friendly for non-text input files, see lesspipe(1)
+# For example, this allows `less myfile.zip` to work as expected
+# otherwise less would just show binary gibberish on the terminal
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
-# set variable identifying the chroot you work in (used in the prompt below)
-if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
+
+
+### My Aliases 🕵️
+if [ -f ~/.zsh_aliases ]; then
+    . ~/.zsh_aliases
 fi
 
-# set a fancy prompt (non-color, unless we know we "want" color)
-case "$TERM" in
-    xterm-color|*-256color) color_prompt=yes;;
-esac
-
-# uncomment for a colored prompt, if the terminal has the capability; turned
-# off by default to not distract the user: the focus in a terminal window
-# should be on the output of commands, not on the prompt
-#force_color_prompt=yes
-
-if [ -n "$force_color_prompt" ]; then
-    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
-    # We have color support; assume it's compliant with Ecma-48
-    # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
-    # a case would tend to support setf rather than setaf.)
-    color_prompt=yes
-    else
-    color_prompt=
-    fi
-fi
-
-if [ "$color_prompt" = yes ]; then
-    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-else
-    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
-fi
-unset color_prompt force_color_prompt
-
-# If this is an xterm set the title to user@host:dir
-case "$TERM" in
-xterm*|rxvt*)
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
-    ;;
-*)
-    ;;
-esac
-
-# enable color support of ls and also add handy aliases
+# TODO: Get rid of this? enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     eval "$(dircolors -b)"
@@ -421,16 +222,16 @@ fi
 #export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01'
 
 
-# Add an "alert" alias for long running commands.  Use like so:
-#   sleep 10; alert
-alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
-# Alias definitions.
-# You may want to put all your additions into a separate file like
-# ~/.bash_aliases, instead of adding them here directly.
-# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+### Plugins continued! 🔌
+# Hooks into the line editor to show ghosted suggestions
+# Needs to run after other plugins so they don’t overwrite it.
+# But before zsh-syntax-highlighting, which needs to be last.
+plug "zsh-users/zsh-autosuggestions"
 
-if [ -f ~/.zsh_aliases ]; then
-    . ~/.zsh_aliases
-fi
+# Syntax highlighting for the Z shell;
+# It colors the command line right before it's drawn
+# Must be last or it can break or override everything else.
+# plug "zsh-users/zsh-syntax-highlighting"
+plug "zdharma-continuum/fast-syntax-highlighting"
 
