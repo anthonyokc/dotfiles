@@ -4,7 +4,7 @@ set -euo pipefail
 # fzf fuzzy search of git repositories, then clone
 function sesh_new_repo() {
 
-    GITHUB_USERNAME="$(git config user.name)"
+    GITHUB_USERNAME="$(gh api user --jq '.login')"
     github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
     github_users=("${github_users[@],,}")  # Convert array elements to lowercase
 
