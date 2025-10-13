@@ -217,3 +217,28 @@ function count_mimes() {
         column -t -N "$column_names" |
         nu --stdin --commands '$in | detect columns'
 }
+
+# Cat file and copy to clipboard
+# Tries multiple clipboard methods: WSL (clip.exe), macOS (pbcopy), Linux (xclip)
+function cc() {
+    if [ -z "$1" ]; then
+        echo "Usage: cc <file>"
+        return 1
+    fi
+
+    if [ ! -f "$1" ]; then
+        echo "Error: File '$1' not found"
+        return 1
+    fi
+
+    # Try WSL clip.exe first, then macOS pbcopy, then Linux xclip
+    cat "$1" | clip.exe 2>/dev/null || pbcopy 2>/dev/null || xclip -selection clipboard 2>/dev/null || echo "Clipboard not available"
+}
+
+# ANSI 256 color table
+function colors() {
+    for i in {0..255}; do
+        printf "\033[48;5;%sm %3s \033[0m" "$i" "$i"
+        if (( (i+1) % 16 == 0 )); then echo; fi
+    done
+}
