@@ -1,23 +1,33 @@
 [user]
+    # User information for commits
     email = anthonyfloresokc@gmail.com
-    name = anthonyokc
+    name = Anthony Flores
+    # SSH key for signing commits
     signingkey = /home/anthony/.ssh/github_ed25519.pub
 [init]
+    # Set default branch name to main when initializing a new repository
     defaultBranch = main
 [gpg]
+    # Use SSH instead of GPG for signing
     format = ssh
 [commit]
+    # Sign all commits by default (the above tell it to use SSH not GPG)
     gpgsign = true
 [pull]
+    # Always rebase when pulling changes from a remote repository instead of merging
     rebase = true
 [alias]
+   # adds an alias for a custom script to clone a bare repository for worktrees
    clone-for-worktrees = "!sh $HOME/scripts/git-clone-bare-for-worktrees.sh"
 [core]
+  # Set the default .gitignore file for all repositories
   excludesFile = ~/.gitignore
+  # Use delta as the default pager for Git commands
   pager = delta
 [interactive]
-    diffFilter = delta --color-only
+  diffFilter = delta --color-only --features=interactive
 [delta]
     navigate = true
     side-by-side = true
     line-numbers = true
+    features = catppuccin-mocha
