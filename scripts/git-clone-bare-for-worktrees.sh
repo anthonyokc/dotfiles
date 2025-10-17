@@ -65,11 +65,17 @@ git for-each-ref --format='%(refname:short)' refs/heads | while read branch; do
     git branch --set-upstream-to=origin/"$branch" "$branch"
 done
 
+# Create initial worktree for the default branch
 default_branch=$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')
 
-if [ -n "$default_branch" ]; then
+# If we could determine the default branch, create its worktree
+if [ -n "$default_branch" ] && [ "$default_branch" != "(unknown)" ]; then
     remote=$(if [ -n "$upstream" ]; then echo "upstream"; else echo "origin"; fi)
 
     echo "Creating initial worktree for the default branch ($remote/$default_branch)..."
     git worktree add -B "$default_branch" "$default_branch" "${remote}/$default_branch"
+else
+    # Default branch is unknown, create a main branch and worktree
+    echo "Default branch is unknown, creating main branch and worktree..."
+    git worktree add -B main main origin/main || git worktree add -B main main
 fi

@@ -4,90 +4,116 @@ set -euo pipefail
 # fzf fuzzy search of git repositories, then clone
 function sesh_new_repo() {
 
-    GITHUB_USERNAME="$(gh api user --jq '.login')"
-    github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
-    github_users=("${github_users[@],,}")  # Convert array elements to lowercase
+  GITHUB_USERNAME="$(gh api user --jq '.login')"
+  github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
+  github_users=("${github_users[@],,}") # Convert array elements to lowercase
 
-    github_user="$( \
-        printf "%s\n" "${github_users[@]}" | \
-        gum filter \
-            --placeholder 'Pick a GitHub username or organization...' \
-            --limit 1 --height 50 --prompt='👤 '
-    )"
+  github_user="$(
+    printf "%s\n" "${github_users[@]}" |
+      gum filter \
+        --placeholder 'Pick a GitHub username or organization...' \
+        --limit 1 --height 50 --prompt='👤 '
+  )"
 
-    if [[ -n $github_user ]]; then
-       github_user_dir="$HOME/code/$github_user"
+  if [[ -n $github_user ]]; then
+    github_user_dir="$HOME/code/$github_user"
 
-       repo_dir="$(gum input --placeholder "What's the name of the new repo?" --prompt="📝 ")"
+    repo_dir="$(gum input --placeholder "What's the name of the new repo?" --prompt="📝 ")"
 
-       if [[ -d "$github_user_dir/$repo_dir" && "$repo_dir" != "" ]]; then
-          gum spin --title "Directory $github_user_dir/$repo_dir already exists. Connecting..." -- \
-              sesh connect $github_user_dir/$repo_dir
-       elif [[ "$repo_dir" != "" ]]; then
-          # Get templates and add a "None" option
-          template=$( \
-              (echo "None"; printf '%s\0' openjusticeok anthonyokc |
-              xargs -I{} -0 -n1 -P2 gh repo list {} \
-                      --topic template --json nameWithOwner \
-                      --jq '.[].nameWithOwner' |
-              sort -u) |
-              gum filter --limit 1 \
-                         --placeholder 'Pick a repo template or None' \
-                         --height 50 --prompt '📚 '
-          )
-          mkdir -p "$github_user_dir"  # Create directory for the username if it doesn't exist
+    if [[ -d "$github_user_dir/$repo_dir" && "$repo_dir" != "" ]]; then
+      gum spin --title "Directory $github_user_dir/$repo_dir already exists. Connecting..." -- \
+        sesh connect $github_user_dir/$repo_dir
+    elif [[ "$repo_dir" != "" ]]; then
+      # Get templates and add a "None" option
+      template=$(
+        (
+          echo "None"
+          printf '%s\0' openjusticeok anthonyokc |
+            xargs -I{} -0 -n1 -P2 gh repo list {} \
+              --topic template --json nameWithOwner \
+              --jq '.[].nameWithOwner' |
+            sort -u
+        ) |
+          gum filter --limit 1 \
+            --placeholder 'Pick a repo template or None' \
+            --height 50 --prompt '📚 '
+      )
+      mkdir -p "$github_user_dir" # Create directory for the username if it doesn't exist
 
-          repo_types=("🌐 Public" "🔒 Private")
-          repo_type=$( \
-              printf "%s\n" "${repo_types[@]}" | \
-              gum filter --limit 1 --placeholder 'Pick repo type...' --height 50
-          )
+      repo_types=("🌐 Public" "🔒 Private")
+      repo_type=$(
+        printf "%s\n" "${repo_types[@]}" |
+          gum filter --limit 1 --placeholder 'Pick repo type...' --height 50
+      )
 
-          # Create repo with or without template based on selection
-          if [[ "$repo_type" == "🔒 Private" ]]; then
-              if [ "$template" == "None" ]; then
-                  gh repo create $github_user/$repo_dir --private
-              else
-                  gh repo create $github_user/$repo_dir --private --template $template
-              fi
-              sleep 2
+      # Create repo with or without template based on selection
+      if [[ "$repo_type" == "🔒 Private" ]]; then
+        if [ "$template" == "None" ]; then
+          gh repo create $github_user/$repo_dir --private
+        else
+          gh repo create $github_user/$repo_dir --private --template $template
+        fi
+        sleep 2
+      fi
+      if [[ "$repo_type" == "🌐 Public" ]]; then
+        if [[ "$template" == "None" ]]; then
+          gh repo create $github_user/$repo_dir --public
+        else
+          gh repo create $github_user/$repo_dir --public --template $template
+        fi
+        sleep 2
+      fi
+
+      # Open the repository URL in the default web browser
+      gh repo view $github_user/$repo_dir --web
+
+      # Add gum select to choose between Normal Git Repo and Bare Git Repo
+      repo_types=("Bare Git Repo" "Normal Git Repo")
+      repo_type=$(
+        printf "%s\n" "${repo_types[@]}" |
+          gum filter --limit 1 --placeholder "Choose a repo type" --height 50
+      )
+
+      if [[ $repo_type == "Normal Git Repo" ]]; then
+        gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
+          git clone git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
+        printf "Done! 🎉"
+        printf "💻 Sesh connecting to $github_user_dir/$repo_dir..."
+        sesh connect $github_user_dir/$repo_dir
+      else
+        gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
+          git-clone-bare-for-worktrees.sh git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
+        printf "Done! 🎉"
+
+        # Check which branch exists (main or master) and connect to it
+        if [[ -d "$github_user_dir/$repo_dir/main" ]]; then
+          printf "💻 Sesh connecting to $github_user_dir/$repo_dir/main..."
+          sesh connect $github_user_dir/$repo_dir/main
+        elif [[ -d "$github_user_dir/$repo_dir/master" ]]; then
+          printf "💻 Sesh connecting to $github_user_dir/$repo_dir/master..."
+          sesh connect $github_user_dir/$repo_dir/master
+        else
+          # If neither main nor master exists, connect to whatever is there
+          branch_dir=$(find "$github_user_dir/$repo_dir" -maxdepth 1 -type d -not -path "$github_user_dir/$repo_dir" | head -1)
+          if [[ -n "$branch_dir" ]]; then
+            branch_name=$(basename "$branch_dir")
+            printf "💻 Sesh connecting to $github_user_dir/$repo_dir/$branch_name..."
+            sesh connect "$github_user_dir/$repo_dir/$branch_name"
+           else
+             # No branch directories exist, create main worktree
+             printf "🌱 No branch directories found, creating main worktree..."
+             cd "$github_user_dir/$repo_dir"
+             git worktree add main
+             printf "💻 Sesh connecting to $github_user_dir/$repo_dir/main..."
+             sesh connect "$github_user_dir/$repo_dir/main"
           fi
-          if [[ "$repo_type" == "🌐 Public" ]]; then
-              if [[ "$template" == "None" ]]; then
-                  gh repo create $github_user/$repo_dir --public
-              else
-                  gh repo create $github_user/$repo_dir --public --template $template
-              fi
-              sleep 2
-          fi
+        fi
+      fi
 
-          # Open the repository URL in the default web browser
-          gh repo view $github_user/$repo_dir --web
-
-          # Add gum select to choose between Normal Git Repo and Bare Git Repo
-          repo_types=("Bare Git Repo" "Normal Git Repo")
-          repo_type=$( \
-              printf "%s\n" "${repo_types[@]}" | \
-              gum filter --limit 1 --placeholder "Choose a repo type" --height 50
-          )
-
-          if [[ $repo_type == "Normal Git Repo" ]]; then
-              gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
-                  git clone git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
-              printf "Done! 🎉"
-              sleep 2
-          else
-              gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
-                  git-clone-bare-for-worktrees.sh git@github.com:$github_user/$repo_dir.git $github_user_dir/$repo_dir
-              printf "Done! 🎉"
-              sleep 2
-          fi
-
-          sesh connect $github_user_dir/$repo_dir
-       else
-          gum spin --title "No repo name provided. Exiting..." -- sleep 2
-       fi
+    else
+      gum spin --title "No repo name provided. Exiting..." -- sleep 2
     fi
+  fi
 }
 
 sesh_new_repo
