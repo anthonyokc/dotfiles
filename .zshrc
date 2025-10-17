@@ -124,6 +124,7 @@ add_to_path "$HOME/scripts"
 add_to_path "$HOME/scripts/installers/"
 add_to_path "/usr/local/go/bin"
 add_to_path "/usr/local/cuda-12.5/bin"
+add_to_path "$HOME/.bun/bin"
 [[ -d $NPM_CONFIG_PREFIX/bin ]] && add_to_path "$NPM_CONFIG_PREFIX/bin"
 [[ -d $PYENV_ROOT/bin ]] && add_to_path "$PYENV_ROOT/bin"
 
