@@ -1,6 +1,6 @@
 if (is.null(getOption("anthony.profile.loaded"))) {
   if (interactive()) {
-    cat("⚙️ Loading Interactive .Rprofile settings...\n")
+    cat("⚙️ Loading Interactive .Rprofile Settings...\n")
     cat("--------------------------------------------\n")
     q <- function(save = "no", ...) {
       quit(save = save, ...)
@@ -90,7 +90,7 @@ if (is.null(getOption("anthony.profile.loaded"))) {
     )
   }
 
-  cat("\n⚙️ Loading non-Interactive .Rprofile settings...\n")
+  cat("\n⚙️ Loading Non-Interactive .Rprofile Settings...\n")
   cat("--------------------------------------------------\n")
 
   # If Linux Only
@@ -112,7 +112,6 @@ if (is.null(getOption("anthony.profile.loaded"))) {
 
   cat("\n🤠 YEEHAW! Done loading Anthony's .Rprofile\n\n")
 
-} else {
   options(anthony.profile.loaded = TRUE)
 }
 
