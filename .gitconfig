@@ -24,6 +24,7 @@
   excludesFile = ~/.gitignore
   # Use delta as the default pager for Git commands
   pager = delta
+  editor = nvim
 [interactive]
   diffFilter = delta --color-only --features=interactive
 [delta]
