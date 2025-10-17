@@ -2,8 +2,9 @@
 #   sleep 10; alert
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
-# Quickly reload .zshrc
-alias zs='source ~/.zshrc'
+# Sourcing
+alias s='source' # Shorter source command
+alias zs='source $HOME/.zshrc' # Quickly reload .zshrc
 
 # cd aliases
 alias cu='cd ..'
@@ -72,9 +73,12 @@ alias nr='ng nix run'
 alias nS='ng nix search'
 alias nU='sudo determinate-nixd upgrade'
 
+# ssh
+alias sa='ssh-add'
+alias sl='ssh-add -l'
 
 # ssh server monitoring/connections
-alias sl='sudo tail -f /var/log/auth.log'
+alias sshl='sudo tail -f /var/log/auth.log'
 alias sshs='sudo systemctl status ssh'
 alias sshr='sudo systemctl restart ssh'
 
@@ -112,7 +116,6 @@ alias tcd='token-count --model_name "gpt-4" --directory'
 alias tct='token-count --model_name "gpt-4" --text'
 
 # Working with Git
-alias sa='ssh-add ~/.ssh/github_ed25519.pub'
 alias ga='git add'
 alias gc='git commit -m'
 alias gca='git commit -am'
