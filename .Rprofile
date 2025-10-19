@@ -32,7 +32,7 @@ if (is.null(getOption("anthony.profile.loaded"))) {
         }
         print("Retrying failed packages...")
         pkg <- sub("^- Installing ([^ ]+) .* FAILED$", "\\1", fails[[1]])
-        rr(!!rlang::sym(pkg))
+        renv::install(pkg, prompt = FALSE)
       }
     }
 
