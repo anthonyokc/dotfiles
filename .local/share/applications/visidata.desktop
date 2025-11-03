@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=VisiData
+Comment=A terminal spreadsheet multitool for exploring and analyzing data
+Exec=/usr/bin/tmux new-window -n vd ~/.local/bin/vd %U
+Terminal=true
+Type=Application
+Categories=Development;TextEditor;Utility;
+MimeType=text/csv;text/plain;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;
+

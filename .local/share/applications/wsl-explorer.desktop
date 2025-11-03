@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Windows Explorer
+Exec=wsl-explorer %U
+Type=Application
+Terminal=false
+MimeType=inode/directory;
