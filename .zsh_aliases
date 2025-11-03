@@ -134,6 +134,7 @@ function gcl() {
 }
 
 alias hb='hub browse'
+alias hu='taproom' # Homebrew Upgrade CLI tool
 
 alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 
