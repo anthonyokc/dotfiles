@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# Pull reusable spinner helper for cancellable waits
+source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+
+# fzf fuzzy search of git repositories
+function find_repo() {
+    (
+        cat "$fzf_git_cache" 2>/dev/null
+        run_with_exit_prompt "Searching for GitHub Repos..." \
+            "$HOME/scripts/listrepo_gql" "$GITHUB_SEARCH_OAUTH_TOKEN" "$GITHUB_ORG"
+    ) | \
+    tee "$fzf_git_cache" | \
+    nauniq | \
+    gum filter --limit 1 --placeholder 'Clone a repo' --height 50 --prompt='⬇️ '
+}
+
+find_repo

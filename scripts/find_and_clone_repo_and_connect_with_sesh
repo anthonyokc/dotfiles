@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# flconesesh - Clone a GitHub repository using fzf and gum, then connect with sesh
+# find_and_clone_repo_and_connect_with_sesh - Clone a GitHub repository using fzf and gum, then connect with sesh
 set -euo pipefail
 
+source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+
 # fzf fuzzy search of git repositories, then clone
-function fclonesesh() {
+function find_and_clone_repo_and_connect_with_sesh() {
     # Make sure your GitHub key is loaded in the agent first
     if ! ssh-add -l 2>/dev/null | grep -q 'fXGkqcOXmtBUEdVBJoKRMl8Z70mSACLYOF8NPQtaRxM'; then
-        gum spin --title "Adding GitHub SSH key to agent, enter passphrase 🔒" -- \
-            ssh-add ~/.ssh/github_ed25519 || { echo "❌  Could not add SSH key – aborting"; sleep 2; return 1; }
+        if ! run_with_exit_prompt "Adding GitHub SSH key to agent, enter passphrase 🔒" \
+            ssh-add ~/.ssh/github_ed25519; then
+            echo "❌  Could not add SSH key – aborting"
+            sleep 2
+            return 1
+        fi
         echo "🎉 Success Added GitHub SSH key to agent!"
     fi
 
@@ -38,7 +44,7 @@ function fclonesesh() {
     # If user selected "Search fresh repos", wait for API and show full results
     if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
         # Wait for background API call to complete
-        gum spin --title "Searching for GitHub Repos..." -- pid $api_pid
+        run_with_exit_prompt "Searching for GitHub Repos..." bash -lc "wait $api_pid"
 
         selection="$( \
             (
@@ -98,15 +104,15 @@ function fclonesesh() {
        )
 
        if [[ $repo_type == "Normal Git Repo" ]]; then
-           gum spin --title "Cloning from GitHub into $repo_dir" -- \
-               git clone git@github.com:$repo.git "$repo_dir"
+           run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
+               git clone "git@github.com:$repo.git" "$repo_dir"
        else
-           gum spin --title "Cloning from GitHub into $repo_dir" -- \
-               git-clone-bare-for-worktrees.sh git@github.com:$repo.git "$repo_dir"
+           run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
+               git-clone-bare-for-worktrees.sh "git@github.com:$repo.git" "$repo_dir"
        fi
 
        sesh connect "$repo_dir"
     fi
 }
 
-fclonesesh
+find_and_clone_repo_and_connect_with_sesh

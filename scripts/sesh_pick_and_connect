@@ -1,0 +1,3 @@
+#!/bin/bash
+set -euo pipefail
+sesh connect "$(sesh list -i | gum filter --no-sort --fuzzy --limit 1 --placeholder "Pick a sesh" --prompt="⚡")"

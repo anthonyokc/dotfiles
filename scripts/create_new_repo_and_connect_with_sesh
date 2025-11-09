@@ -1,10 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-# fzf fuzzy search of git repositories, then clone
-function sesh_new_repo() {
+source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
 
-  GITHUB_USERNAME="$(gh api user --jq '.login')"
+# fzf fuzzy search of git repositories, then clone
+function create_new_repo_and_connect_with_sesh() {
+
+  GITHUB_USERNAME="$(run_with_exit_prompt "Fetching GitHub profile…" gh api user --jq '.login')"
   github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")
   github_users=("${github_users[@],,}") # Convert array elements to lowercase
 
@@ -116,4 +118,4 @@ function sesh_new_repo() {
   fi
 }
 
-sesh_new_repo
+create_new_repo_and_connect_with_sesh

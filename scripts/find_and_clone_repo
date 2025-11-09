@@ -1,13 +1,21 @@
 #!/bin/bash
-# fclone: Clone a GitHub repository using fzf and gum
+# find_and_clone_repo: Clone a GitHub repository using fzf and gum
 set -euo pipefail
 
+# Pull reusable spinners/exit helpers
+source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+
 # fzf fuzzy search of git repositories, then clone
-function fclone() {
+function find_and_clone_repo() {
 
     selection="$(
-        (echo "Other"; cat $fzf_git_cache 2>/dev/null; gum spin --title "Searching for GitHub Repos..." -- $HOME/scripts/listrepo_gql $GITHUB_SEARCH_OAUTH_TOKEN $GITHUB_ORG) | \
-        tee $fzf_git_cache | \
+        (
+            echo "Other"
+            cat "$fzf_git_cache" 2>/dev/null
+            run_with_exit_prompt "Searching for GitHub Repos..." \
+                "$HOME/scripts/listrepo_gql" "$GITHUB_SEARCH_OAUTH_TOKEN" "$GITHUB_ORG"
+        ) | \
+        tee "$fzf_git_cache" | \
         nauniq | \
         gum filter --limit 1 --placeholder 'Clone a repo' --height 50 --prompt='⬇️ ' --header="GitHub Repo Clone Tool" --header.foreground 5
     )"
@@ -31,4 +39,4 @@ function fclone() {
     git clone "git@github.com:$repo.git" "$HOME/code/$repo"
 }
 
-fclone
+find_and_clone_repo

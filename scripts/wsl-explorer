@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Convert Linux path to Windows path for explorer.exe
+if [ -z "$1" ]; then
+  explorer.exe .
+else
+  # translate /home/[user] → \\wsl.localhost\Ubuntu\home\[user]
+  winpath=$(wslpath -w "$1")
+  explorer.exe "$winpath"
+fi
+

@@ -1,5 +1,5 @@
 #!/bin/bash
-# sesh_search - Search and connect to existing sesh sessions or create new ones from code repos
+# find_repo_directory_and_connect_with_sesh - Search and connect to existing sesh sessions or create new ones from code repos
 set -euo pipefail
 
 # List all existing sesh sessions

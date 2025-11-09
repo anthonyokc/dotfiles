@@ -1,8 +1,10 @@
 #!/bin/bash
-# fhub: fzf fuzzy search of git repositories, then open in web browser
+# find_and_open_repo_in_browser: fzf fuzzy search of git repositories, then open in web browser
 set -euo pipefail
 
-function fhub() {
+source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+
+function find_and_open_repo_in_browser() {
     # Start GitHub API search in background
     temp_fresh_results=$(mktemp)
     # Ensure temp file is removed on exit
@@ -29,8 +31,8 @@ function fhub() {
 
     # If user selected "Search fresh repos", wait for API and show full results
     if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
-        # Wait for background API call to complete
-        gum spin --title "Searching for GitHub Repos..." -- pid $api_pid
+        # Wait for background API call to complete; allow Esc to cancel the wait
+        run_with_exit_prompt "Searching for GitHub Repos..." bash -lc "wait $api_pid"
 
         selection="$(
             (
@@ -77,4 +79,4 @@ function fhub() {
     hub browse "$repo"
 }
 
-fhub
+find_and_open_repo_in_browser

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Description: Connect to a tmux session (via sesh) and rename the window
+# Usage: sesh_connect_then_rename_tmux [SESSION|ARGS...]
+set -euo pipefail
+
+usage() {
+  echo "Usage: $(basename "$0") [SESSION|ARGS...]"
+}
+
+if [[ ${1-} == "-h" || ${1-} == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+# If not inside tmux, just exec into sesh connect
+if [[ -z "${TMUX-}" ]]; then
+  exec sesh connect "$@"
+fi
+
+# Inside tmux: switch/connect first so we can rename the target window
+sesh connect "$@"
+
+# Get the branch name from $@, which is of form reponame/branch
+branch_name="${1##*/}"
+
+# Rename the current window in the connected session
+tmux rename-session -t "$branch_name" "$@"
