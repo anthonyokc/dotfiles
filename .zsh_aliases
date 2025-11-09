@@ -162,6 +162,16 @@ alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 alias bat=batcat
 
 # wc functions
+# Using cloc - now extensible function
+function loc ()
+{
+    local target_dir="${1:-.}" # Default to current directory
+    local vcs="${2:-git}" # Default to git
+    local additional_args=("${@:3}") # Pass through any additional arguments
+    
+    cloc "$target_dir" --vcs "$vcs" "${additional_args[@]}" && echo "\n" && cloc "$target_dir" --vcs "$vcs" --percent "${additional_args[@]}" | tail -n +2
+}
+
 # Count lines in files of a certain type in a directory
 function linecount ()
 {
@@ -169,17 +179,29 @@ function linecount ()
     local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
     local pattern="${2:-*.R}" # Default to *.R if no second argument is provided
     local sort_column="number_of_lines file -n -r" # Default sort by number of lines
+    local find_args=()
+    local wc_args=()
 
+    # Process additional arguments
     for arg in "${@:3}"; do
         if [[ "$arg" == "--sort-files" ]]; then
             sort_column="file" # Sort by file name
+        elif [[ "$arg" == --find-* ]]; then
+            # Pass through find arguments (strip --find- prefix)
+            find_args+=("${arg#--find-}")
+        elif [[ "$arg" == --wc-* ]]; then
+            # Pass through wc arguments (strip --wc- prefix)
+            wc_args+=("${arg#--wc-}")
+        else
+            # Pass through any other arguments to find
+            find_args+=("$arg")
         fi
     done
 
     nu_command="\$in | detect columns | sort-by $sort_column"
 
-    find $file_path -name $pattern -print0 |
-        xargs -0 wc -l |
+    find "$file_path" -name "$pattern" "${find_args[@]}" -print0 |
+        xargs -0 wc -l "${wc_args[@]}" |
         sed "s|$file_path||" |
         column -t -N "number_of_lines,file" |
         nu --stdin --commands "$nu_command"
