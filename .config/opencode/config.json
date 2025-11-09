@@ -2,13 +2,9 @@
   "theme": "catppuccin",
   "keybinds": {
     "leader": "ctrl+k",
-    "app_help": "<leader>h",
     "app_exit": "<leader>q",
     "editor_open": "<leader>e",
     "theme_list": "<leader>t",
-    "project_init": "<leader>i",
-    "tool_details": "<leader>d",
-    "thinking_blocks": "<leader>b",
     "session_export": "<leader>x",
     "session_new": "<leader>n",
     "session_list": "<leader>l",
@@ -38,18 +34,23 @@
     "input_paste": "ctrl+v",
     "input_submit": "enter",
     "input_newline": "ctrl+j",
-    "switch_mode": "none",
-    "switch_mode_reverse": "none",
-    "switch_agent": "tab",
-    "switch_agent_reverse": "shift+tab",
-    "file_list": "none",
-    "file_close": "none",
-    "file_search": "none",
-    "file_diff_toggle": "none",
-    "messages_previous": "none",
-    "messages_next": "none",
-    "messages_layout_toggle": "none",
-    "messages_revert": "none"
   },
-  "$schema": "https://opencode.ai/config.json"
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "llamacpp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama.cpp (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1"
+      },
+      "models": {
+        "qwen2.5-coder-7b-instruct-gguf-g8_0": {
+          "name": "Qwen2.5 Coder 7B Instruct (8-bit)"
+        },
+        "qwen2.5-coder-7b-instruct-q4_k_m": {
+          "name": "Qwen2.5 Coder 7B Instruct (4-bit K-M)"
+        }
+      }
+    }
+  },
 }
