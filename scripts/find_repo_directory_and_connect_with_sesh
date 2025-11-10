@@ -49,22 +49,21 @@ format_and_sort() {
     cut -f4- # Output only the formatted line and the original dir (tab separated)
 }
 
+# Build the formatted repo list so we can wrap it in a cancellable spinner
+build_repo_list() {
+  list_code_repos | format_and_sort
+}
+
 main() {
-  # 1. Capture existing sessions
-  local sessions
-  sessions="$(list_sesh)"
-
-  # 2. Capture and sort code repo lines
-  local repos
-  repos="$(list_code_repos | format_and_sort)"
-
-  # 3. Combine sessions + repos, pipe to gum filter
+  # 1-3. Stream sessions and repos directly to gum filter for better performance
+  # This avoids storing all results in memory and streams them directly
   local selected_sesh
   selected_sesh=$(
     {
-      printf "%s\n" "$sessions"
-      printf "%s\n" "$repos"
-    } | gum filter --limit 1 --placeholder 'Pick a session' --height 50 --width 40 --prompt='🔎 ' --header="Sesh Selector" --header.foreground 3
+      list_sesh
+      build_repo_list
+    } | gum filter --limit 1 --placeholder 'Pick a session' --height 50 --width 40 \
+      --prompt='🔎 ' --header="Sesh Selector" --header.foreground 3
   )
 
   # 5. Connect to the selected session
