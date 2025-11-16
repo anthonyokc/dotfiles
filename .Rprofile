@@ -74,6 +74,12 @@ if (is.null(getOption("anthony.profile.loaded"))) {
 
     rm(package, package_clean, packages) # Clean up namespace
 
+    # Custom utility functions
+    mv <- function(old_name, new_name) {
+      assign(new_name, get(old_name, envir = .GlobalEnv), envir = .GlobalEnv)
+      rm(list = old_name, envir = .GlobalEnv)
+    }
+
     # Start httpgd server
     cat("\n📊 Starting httpgd server on port 3333...\n")
     options(
