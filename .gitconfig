@@ -32,3 +32,5 @@
     side-by-side = true
     line-numbers = true
     features = catppuccin-mocha
+[credential]
+	helper = cache
