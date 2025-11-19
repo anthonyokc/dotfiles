@@ -140,8 +140,8 @@ alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 
 # Working with dotfiles
 alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
-alias dotfiles-push='dotfiles push git@github.com:AnthonyOKC/dotfiles.git'
-alias dotfiles-pull='dotfiles pull git@github.com:AnthonyOKC/dotfiles.git'
+alias dotfiles-push='dotfiles push git@github.com:anthonyokc/dotfiles.git'
+alias dotfiles-pull='dotfiles pull git@github.com:anthonyokc/dotfiles.git'
 alias da='dotfiles add -u'
 alias dr='dotfiles restore --staged'
 alias dc='dotfiles commit -m'
