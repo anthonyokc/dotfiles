@@ -102,7 +102,7 @@ if (is.null(getOption("anthony.profile.loaded"))) {
   # If Linux Only
 
   cat("🌐 Setting CRAN mirror to Posit Package Manager with Linux binaries...\n")
-  options(repos = c(CRAN = "https://packagemanager.posit.co/cran/__linux__/noble/latest"))
+  options(repos = c(CRAN = sprintf("https://p3m.dev/cran/latest/bin/linux/noble-%s/%s", R.version["arch"], substr(getRversion(), 1, 3))))
 
   cat("😪 Disabling completion from languageserver to allow cmp_r to handle those...\n")
   options(
