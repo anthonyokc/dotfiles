@@ -1,0 +1,578 @@
+#!/bin/bash
+# Dependencies:
+#   - git (diffs, staging, and committing)
+#   - gum CLI (interactive prompts and inputs)
+#   - opencode CLI (LLM-backed commit suggestions)
+#   - optional clipboard helper (pbcopy, wl-copy, xclip, clip.exe)
+#
+# Usage instructions are defined below for quick reference.
+set -euo pipefail
+
+usage() {
+  cat <<EOF
+Usage: $SCRIPT_NAME [--all|--staged] [--model provider/model]
+
+Default behavior sends staged changes (git diff --cached) to opencode, receives
+a conventional commit subject, and creates the commit. Use --all to include
+unstaged changes (git diff) and automatically stage them before committing.
+
+Options:
+  --all          Use the full working tree diff (staged + unstaged)
+  --staged       Force staged diff even if --all was set earlier
+  --model VALUE  Override the opencode model (provider/model)
+  -h, --help     Show this help and exit
+EOF
+}
+
+SCRIPT_NAME="$(basename "$0")"
+DIFF_MODE="staged"
+REQUESTED_MODEL="${OPENCODE_MODEL:-opencode/kimi-k2}"
+OC_BIN="${OPENCODE_BIN:-$(command -v opencode 2>/dev/null || true)}"
+GUM_BIN="${GUM_BIN:-$(command -v gum 2>/dev/null || true)}"
+
+ERROR_MESSAGE=""
+ERROR_PROMPT_SUPPRESSED=false
+CLIPBOARD_CMD=()
+WORKTREE_PATH=""
+GIT_DIR_PATH=""
+
+record_error_message() {
+  local message="$1"
+  if [[ -n "$message" ]]; then
+    ERROR_MESSAGE="$message"
+  fi
+}
+
+fail() {
+  local message="$1"
+  record_error_message "$message"
+  printf '%s\n' "$message" >&2
+  exit 1
+}
+
+suppress_error_prompt() {
+  ERROR_PROMPT_SUPPRESSED=true
+}
+
+detect_clipboard_command() {
+  if [[ ${#CLIPBOARD_CMD[@]} -gt 0 ]]; then
+    return 0
+  fi
+  if command -v pbcopy >/dev/null 2>&1; then
+    CLIPBOARD_CMD=(pbcopy)
+    return 0
+  elif command -v wl-copy >/dev/null 2>&1; then
+    CLIPBOARD_CMD=(wl-copy)
+    return 0
+  elif command -v xclip >/dev/null 2>&1; then
+    CLIPBOARD_CMD=(xclip -selection clipboard)
+    return 0
+  elif command -v clip.exe >/dev/null 2>&1; then
+    CLIPBOARD_CMD=(clip.exe)
+    return 0
+  fi
+  return 1
+}
+
+copy_to_clipboard() {
+  local payload="$1"
+  if ! detect_clipboard_command; then
+    return 1
+  fi
+  if printf '%s' "$payload" | "${CLIPBOARD_CMD[@]}" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+enable_modified_key_detection() {
+  if [[ -r /dev/tty ]]; then
+    printf '\e[>4;2m' >/dev/tty 2>/dev/null || true
+  fi
+}
+
+disable_modified_key_detection() {
+  if [[ -r /dev/tty ]]; then
+    printf '\e[>4;0m' >/dev/tty 2>/dev/null || true
+  fi
+}
+
+read_keypress() {
+  local __resultvar="$1"
+  local key
+  if ! IFS= read -rsn1 key </dev/tty; then
+    return 1
+  fi
+  if [[ "$key" == $'\e' ]]; then
+    local chunk
+    while IFS= read -rsn1 -t 0.01 chunk </dev/tty; do
+      key+="$chunk"
+      if [[ "$chunk" =~ [[:alpha:]] || "$chunk" == '~' ]]; then
+        break
+      fi
+    done
+  fi
+  printf -v "$__resultvar" '%s' "$key"
+  return 0
+}
+
+wait_for_error_ack() {
+  local message="$1"
+  if [[ ! -r /dev/tty ]]; then
+    return
+  fi
+  enable_modified_key_detection
+  local key
+  local -a shift_sequences=(
+    $'\e[13;2u'
+    $'\e[13;2~'
+    $'\e[27;2;13~'
+  )
+  while true; do
+    if ! read_keypress key; then
+      break
+    fi
+    if [[ "$key" == $'\n' ]]; then
+      break
+    fi
+    for seq in "${shift_sequences[@]}"; do
+      if [[ "$key" == "$seq" ]]; then
+        if copy_to_clipboard "$message"; then
+          printf '\nError copied to clipboard.\n' >&2
+        else
+          printf '\nClipboard copy unavailable (missing backend).\n' >&2
+        fi
+        disable_modified_key_detection
+        return
+      fi
+    done
+  done
+  disable_modified_key_detection
+}
+
+show_error_prompt() {
+  local message="$1"
+  local status="$2"
+  local body="$message"
+  if [[ -z "$body" ]]; then
+    body=$(printf 'An unknown error occurred (exit %s).' "$status")
+  fi
+  printf '\n' >&2
+  if [[ -n "$GUM_BIN" ]]; then
+    if ! $GUM_BIN style --border rounded --padding "1 2" --margin "0 0" \
+      --border-foreground 9 "$body" >&2; then
+      printf '%s\n' "$body" >&2
+    fi
+  else
+    printf '%s\n' "$body" >&2
+  fi
+  if [[ -r /dev/tty ]]; then
+    printf '\nPress Enter to exit. Press Shift+Enter to copy the error to your clipboard.\n' >&2
+    wait_for_error_ack "$body"
+  else
+    printf '\nNo interactive terminal available to acknowledge the error.\n' >&2
+  fi
+}
+
+handle_err_trap() {
+  local status="$1"
+  local cmd="$2"
+  if [[ -z "$ERROR_MESSAGE" ]]; then
+    ERROR_MESSAGE=$(printf 'Command "%s" failed with status %s.' "$cmd" "$status")
+  fi
+}
+
+handle_exit_trap() {
+  local status="$1"
+  if (( status == 0 )) || [[ "$ERROR_PROMPT_SUPPRESSED" == true ]]; then
+    return
+  fi
+  show_error_prompt "$ERROR_MESSAGE" "$status"
+}
+
+trap 'handle_err_trap $? "$BASH_COMMAND"' ERR
+trap 'handle_exit_trap $?' EXIT
+
+prompt_for_worktree_path() {
+  while true; do
+    local selection
+    local placeholder="${HOME:-/}"
+    if ! selection="$($GUM_BIN input --header "Enter the path to the git worktree" --placeholder "$placeholder" --prompt "Worktree: ")"; then
+      fail 'Worktree path selection cancelled.'
+    fi
+    selection="${selection//$'\r'/}"
+    selection="${selection//$'\n'/}"
+    if [[ -z "$selection" ]]; then
+      printf 'A worktree path is required.\n' >&2
+      continue
+    fi
+    if [[ -n "${HOME:-}" && "$selection" == "~"* ]]; then
+      selection="${selection/#\~/$HOME}"
+    fi
+    if [[ "$selection" != /* ]]; then
+      selection="$PWD/$selection"
+    fi
+    if [[ ! -d "$selection" ]]; then
+      printf 'Path does not exist: %s\n' "$selection" >&2
+      continue
+    fi
+    if ! selection="$(cd "$selection" && pwd)"; then
+      printf 'Unable to resolve path: %s\n' "$selection" >&2
+      continue
+    fi
+    printf '%s' "$selection"
+    return
+  done
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --all)
+      DIFF_MODE="all"
+      shift
+      ;;
+    --staged)
+      DIFF_MODE="staged"
+      shift
+      ;;
+    --model)
+      if [[ $# -lt 2 ]]; then
+        fail 'Error: --model requires a value'
+      fi
+      REQUESTED_MODEL="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage >&2
+      fail "$(printf 'Unknown option: %s' "$1")"
+      ;;
+  esac
+done
+
+if [[ -z "$OC_BIN" ]]; then
+  fail 'Error: opencode CLI not found. Set OPENCODE_BIN or add to PATH.'
+fi
+
+if [[ -z "$GUM_BIN" ]]; then
+  fail 'Error: gum CLI is required for interactivity.'
+fi
+
+GIT_BIN="${GIT_BIN:-$(command -v git 2>/dev/null || true)}"
+if [[ -z "$GIT_BIN" ]]; then
+  fail 'Error: git binary not found.'
+fi
+
+inside_work_tree_status=0
+inside_work_tree="$($GIT_BIN rev-parse --is-inside-work-tree 2>/dev/null)" || inside_work_tree_status=$?
+if (( inside_work_tree_status != 0 )); then
+  fail "$(printf 'Error: %s must be run inside a git repository.' "$SCRIPT_NAME")"
+fi
+
+if [[ "$inside_work_tree" != "true" ]]; then
+  if ! bare_status="$($GIT_BIN rev-parse --is-bare-repository 2>/dev/null)"; then
+    fail "$(printf 'Error: %s must be run inside a git repository.' "$SCRIPT_NAME")"
+  fi
+  if [[ "$bare_status" != "true" ]]; then
+    fail "$(printf 'Error: %s must be run inside a git repository.' "$SCRIPT_NAME")"
+  fi
+  GIT_DIR_PATH="$($GIT_BIN rev-parse --absolute-git-dir 2>/dev/null || pwd)"
+  WORKTREE_PATH="$($GIT_BIN config --get core.worktree 2>/dev/null || true)"
+  if [[ -z "$WORKTREE_PATH" ]]; then
+    normalized_cwd="${PWD%/}"
+    dotfiles_dir=""
+    if [[ -n "${HOME:-}" ]]; then
+      dotfiles_dir="${HOME%/}/dotfiles"
+    fi
+    if [[ -n "$dotfiles_dir" && "$normalized_cwd" == "$dotfiles_dir" ]]; then
+      WORKTREE_PATH="${HOME%/}"
+    else
+      WORKTREE_PATH="$(prompt_for_worktree_path)"
+    fi
+  fi
+fi
+
+if [[ -n "$WORKTREE_PATH" ]]; then
+  if [[ -n "${HOME:-}" && "$WORKTREE_PATH" == "~"* ]]; then
+    WORKTREE_PATH="${WORKTREE_PATH/#\~/$HOME}"
+  fi
+  if [[ "$WORKTREE_PATH" != /* ]]; then
+    worktree_base="$PWD"
+    if [[ -n "$GIT_DIR_PATH" ]]; then
+      worktree_base="$GIT_DIR_PATH"
+    fi
+    WORKTREE_PATH="$worktree_base/$WORKTREE_PATH"
+  fi
+  if [[ ! -d "$WORKTREE_PATH" ]]; then
+    fail "$(printf 'Error: worktree path does not exist: %s' "$WORKTREE_PATH")"
+  fi
+  if ! WORKTREE_PATH="$(cd "$WORKTREE_PATH" && pwd)"; then
+    fail "$(printf 'Error: unable to resolve worktree path: %s' "$WORKTREE_PATH")"
+  fi
+fi
+
+run_git() {
+  local -a env_cmd=(env -u GIT_EXTERNAL_DIFF -u GIT_PAGER -u GIT_DIFF_OPTS)
+  if [[ -n "$GIT_DIR_PATH" ]]; then
+    env_cmd+=("GIT_DIR=$GIT_DIR_PATH")
+  fi
+  if [[ -n "$WORKTREE_PATH" ]]; then
+    env_cmd+=("GIT_WORK_TREE=$WORKTREE_PATH")
+  fi
+  "${env_cmd[@]}" \
+    "$GIT_BIN" \
+      -c core.pager=cat \
+      -c pager.diff=false \
+      -c pager.log=false \
+      -c diff.external= \
+      -c alias.diff= \
+      -c alias.log= \
+      "$@"
+}
+
+EMPTY_TREE_HASH="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
+get_base_tree() {
+  if run_git rev-parse --verify HEAD >/dev/null 2>&1; then
+    printf 'HEAD'
+  else
+    printf '%s' "$EMPTY_TREE_HASH"
+  fi
+}
+
+get_diff() {
+  local base
+  base="$(get_base_tree)"
+  local args=(--no-pager diff-index -p --color=never --no-ext-diff)
+  if [[ "$DIFF_MODE" == "all" ]]; then
+    args+=("$base" "--")
+  else
+    args+=(--cached "$base" "--")
+  fi
+  run_git "${args[@]}"
+}
+
+collect_scopes() {
+  if ! run_git rev-parse HEAD >/dev/null 2>&1; then
+    return
+  fi
+  run_git --no-pager log -n 50 --pretty=format:%s 2>/dev/null \
+    | sed -nE 's/^(feat|fix|chore)\(([^)]+)\).*/\2/p' \
+    | sort -u
+}
+
+format_scopes_line() {
+  mapfile -t scopes < <(collect_scopes || true)
+  if ((${#scopes[@]} == 0)); then
+    printf 'No prior scopes detected. Feel free to introduce one if useful.'
+    return
+  fi
+  local IFS=', '
+  printf 'Recent scopes: %s' "${scopes[*]}"
+}
+
+build_prompt() {
+  local diff_content="$1"
+  local guidance="$2"
+  local previous="$3"
+
+  local scopes_line
+  scopes_line="$(format_scopes_line)"
+  local recent_log
+  recent_log="$(run_git --no-pager log --oneline 2>/dev/null || true)"
+
+  cat <<EOF
+You are an expert engineer who writes precise Conventional Commit subject lines.
+Write a single-line commit message like "feat(scope): summary" or "fix: summary".
+Rules:
+- Allowed types: feat, fix, chore.
+- Scope is optional but, if used, must match an existing scope from prior commits.
+- Summary must be <= 72 characters, active voice, no trailing period.
+- Do not describe tests/checks; focus on why the change exists.
+- If no changes warrant a commit, explain why briefly.
+- You cannot run git or shell commands; rely entirely on the diff below.
+- Assume you are not inside the repository and have no filesystem access.
+- Recent commit log is provided to infer tone and scopes only. Ignore any entries
+  that are not valid Conventional Commits and always output a valid Conventional
+  Commit subject yourself.
+
+Context mode: ${DIFF_MODE} diff.
+${scopes_line}
+Recent commits (latest first):
+EOF
+
+  if [[ -n "$recent_log" ]]; then
+    printf '%s\n' "$recent_log"
+  else
+    printf 'No prior commits to show.\n'
+  fi
+
+  cat <<EOF
+
+Git diff to evaluate:
+EOF
+
+  printf '%s\n' '```diff'
+  printf '%s\n' "$diff_content"
+  printf '%s\n\n' '```'
+
+  if [[ -n "$previous" ]]; then
+    cat <<EOF
+The previous suggestion was:
+${previous}
+EOF
+
+  fi
+
+  if [[ -n "$guidance" ]]; then
+    cat <<EOF
+The user rejected the last attempt with this feedback:
+${guidance}
+Please revise the commit message accordingly.
+EOF
+  fi
+
+  cat <<'EOF'
+Reply with the commit subject line only, no quotes or commentary.
+EOF
+}
+
+render_message() {
+  local message="$1"
+  printf '\nSuggested commit message:\n'
+  $GUM_BIN style --border rounded --padding "1 2" --margin "1 0" \
+    --border-foreground 10 "$message"
+}
+
+prompt_for_action() {
+  local choice
+  if ! choice="$($GUM_BIN choose --cursor.foreground 13 --header "Choose next step" \
+    "Commit" "Edit message" "Regenerate" "Cancel")"; then
+    printf 'Cancel'
+    return
+  fi
+  [[ -z "$choice" ]] && choice="Cancel"
+  printf '%s' "$choice"
+}
+
+prompt_for_edit() {
+  local current="$1"
+  local edited=""
+  if ! edited="$($GUM_BIN write --width 80 --value "$current" --header "Edit commit message")"; then
+    printf '%s' "$current"
+    return
+  fi
+  if [[ -z "$edited" ]]; then
+    printf '%s' "$current"
+    return
+  fi
+  printf '%s' "$edited"
+}
+
+stage_all_changes() {
+  run_git add -A
+  if run_git diff --cached --quiet --exit-code --; then
+    fail 'No staged changes after staging all. Nothing to commit.'
+  fi
+}
+
+ensure_staged_changes() {
+  if run_git diff --cached --quiet --exit-code --; then
+    fail 'No staged changes detected. Run "git add" or pass --all.'
+  fi
+}
+
+run_opencode() {
+  local prompt="$1"
+  local output
+  local args=(run --agent plan)
+  if [[ -n "$REQUESTED_MODEL" ]]; then
+    args+=(--model "$REQUESTED_MODEL")
+  fi
+  args+=("$prompt")
+
+  local tmpdir
+  tmpdir="$(mktemp -d)"
+  if ! output=$(
+    cd "$tmpdir"
+    $GUM_BIN spin --title "Asking $REQUESTED_MODEL" -- "$OC_BIN" "${args[@]}"
+  ); then
+    rm -rf "$tmpdir"
+    fail 'Failed to fetch a commit message from opencode.'
+  fi
+  rm -rf "$tmpdir"
+  printf '%s' "$output"
+}
+
+main() {
+  if [[ "$DIFF_MODE" == "all" ]]; then
+    stage_all_changes
+  else
+    ensure_staged_changes
+  fi
+
+  local diff
+  diff="$(get_diff)"
+
+  if [[ -z "$diff" ]]; then
+    fail 'No changes detected to include in a commit.'
+  fi
+
+  local has_history=true
+  if ! run_git rev-parse --verify HEAD >/dev/null 2>&1; then
+    has_history=false
+  fi
+
+  local prompt=""
+  local message=""
+
+  if [[ "$has_history" == true ]]; then
+    prompt="$(build_prompt "$diff" "" "")"
+    message="$(run_opencode "$prompt" | head -n 1 | tr -d '\r')"
+  else
+    message="chore: initial commit"
+  fi
+
+  if [[ -z "$message" ]]; then
+    fail 'Received an empty commit message from opencode.'
+  fi
+
+  while true; do
+    render_message "$message"
+    local action
+    action="$(prompt_for_action)"
+    case "$action" in
+      Commit)
+        printf '\nCommitting...\n'
+        if ! run_git commit -m "$message"; then
+          fail 'Commit failed.'
+        fi
+        printf '\nCommit created: %s\n' "$message"
+        exit 0
+        ;;
+      "Edit message")
+        message="$(prompt_for_edit "$message")"
+        ;;
+      Regenerate)
+        if [[ "$has_history" == true ]]; then
+          message="$(run_opencode "$prompt" | head -n 1 | tr -d '\r')"
+          if [[ -z "$message" ]]; then
+            fail 'Received an empty commit message from opencode.'
+          fi
+        else
+          message="chore: initial commit"
+        fi
+        ;;
+      Cancel)
+        printf 'Cancelled.\n'
+        suppress_error_prompt
+        exit 1
+        ;;
+    esac
+  done
+}
+
+main "$@"
