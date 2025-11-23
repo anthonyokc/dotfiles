@@ -26,7 +26,7 @@ alias ltls='lsd -alF --tree --total-size --sizesort'
 alias ltlt='lsd -alF --tree --total-size --timesort'
 
 # File tree with plain hyphens for markdown represenation
-function treee() {
+treee() {
     tree --charset=ASCII | sed 's/|/ /g; s/`/-/g; s/+-/-/g; s/--/-/g; s/--/-/g'
 }
 
@@ -34,19 +34,19 @@ function treee() {
 alias rm='rm -Iv' # interactive, verbose
 
 # sed aliases
-function splitspace() {
+splitspace() {
     echo "$1" | sed 's/ /\n/g'
 }
-function splitcomma() {
+splitcomma() {
     echo "$1" | sed 's/,/\n/g'
 }
-function splitcolon() {
+splitcolon() {
     echo "$1" | sed 's/:/\n/g'
 }
-function splitsemicolon() {
+splitsemicolon() {
     echo "$1" | sed 's/;/\n/g'
 }
-function splitdash() {
+splitdash() {
     echo "$1" | sed 's/-/\n/g'
 }
 
@@ -61,7 +61,7 @@ alias nb='ng nix build'
 alias nd='ng nix develop'
 alias nf='ng nix flake'
 alias np='ng nix profile'
-function npa() {
+npa() {
     ng nix profile add nixpkgs#$1
 }
 alias npA='ng nix profile add'
@@ -101,7 +101,7 @@ alias python='python3' # From homebrew
 
 
 # yazi
-function y() {
+y() {
     local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
     yazi "$@" --cwd-file="$tmp"
     if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
@@ -129,7 +129,7 @@ alias gpl='git pull'
 alias gps='git push'
 alias gch='git checkout'
 alias gf='git fetch'
-function gcl() {
+gcl() {
     git clone git@github.com:$1.git
 }
 
@@ -139,10 +139,13 @@ alias hu='taproom' # Homebrew Upgrade CLI tool
 alias bfg='java -jar $HOME/scripts/bfg-1.14.0.jar'
 
 # Working with dotfiles
-alias dotfiles='/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME'
+# This is a function so that we can use git completion and aliases with it
+dotfiles() {
+  /usr/bin/git --git-dir="$HOME/dotfiles" --work-tree="$HOME" "$@"
+}
+compdef _git dotfiles=git # Enable git completion for dotfiles function
 alias dotfiles-push='dotfiles push git@github.com:anthonyokc/dotfiles.git'
 alias dotfiles-pull='dotfiles pull git@github.com:anthonyokc/dotfiles.git'
-alias da='dotfiles add -u'
 alias dr='dotfiles restore --staged'
 alias dc='dotfiles commit -m'
 alias ds='dotfiles status'
@@ -160,7 +163,7 @@ alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
 
 # wc functions
 # Using cloc - now extensible function
-function loc ()
+loc()
 {
     local target_dir="${1:-.}" # Default to current directory
     local vcs="${2:-git}" # Default to git
@@ -170,7 +173,7 @@ function loc ()
 }
 
 # Count lines in files of a certain type in a directory
-function linecount ()
+linecount()
 {
     local current_dir="$(pwd)"
     local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
@@ -207,7 +210,7 @@ function linecount ()
 
 # file functions
 # Count MIME types in files of a certain type in a directory
-function count_mimes() {
+count_mimes() {
     local current_dir="$(pwd)"
     local file_path="${1:-$current_dir}" # Default to current directory if no first argument is provided
     local pattern="*.R" # Default to *.R if no second argument is provided
@@ -243,7 +246,7 @@ function count_mimes() {
 
 # Cat file and copy to clipboard
 # Tries multiple clipboard methods: WSL (clip.exe), macOS (pbcopy), Linux (xclip)
-function cc() {
+cc() {
     if [ -z "$1" ]; then
         echo "Usage: cc <file>"
         return 1
@@ -259,7 +262,7 @@ function cc() {
 }
 
 # ANSI 256 color table
-function colors() {
+colors() {
     for i in {0..255}; do
         printf "\033[48;5;%sm %3s \033[0m" "$i" "$i"
         if (( (i+1) % 16 == 0 )); then echo; fi
