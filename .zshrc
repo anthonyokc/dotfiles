@@ -130,7 +130,7 @@ add_to_path "$HOME/.bun/bin"
 [[ -d $PYENV_ROOT/bin ]] && add_to_path "$PYENV_ROOT/bin"
 
 
-# Test of a more general function that can be used for any path variable
+# TODO: Test of a more general function that can be used for any path variable
 # add_to_any_path($1) {
 #     case ":$1:" in
 #         *":$2:"*) ;;
@@ -138,9 +138,6 @@ add_to_path "$HOME/.bun/bin"
 #     esac
 # }
 # add_to_any_path "MANPATH" "/usr/local/texlive/2022/texmf-dist
-export MANPATH="/usr/local/texlive/2022/texmf-dist/doc/man:$MANPATH"
-# Preset Configuration
-export INFOPATH="/usr/local/texlive/2022/texmf-dist/doc/info:$INFOPATH"
 
 # Paths to look for dynamic (and shared) libraries
 # Example of something we would replace with add_to_any_path
