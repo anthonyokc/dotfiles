@@ -187,11 +187,12 @@ export ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE=60 # max size of buffer to search for sug
 export ZSH_AUTOSUGGEST_USE_ASYNC=1 # reduce lag; compute suggestions via zsh async background worker. Keystrokes are never blocked. May cause out-of-order suggestions if typing very fast.
 
 ### Environment Variables 🌐
-export OPENSSL_CONF=/etc/ssl  # For phantomjs
 export SUDO_EDITOR=$(which nvim)
 export EDITOR=$(which nvim)
 # Go
 export GOPATH="$HOME/.cache/go" # Go module cache directory for downloaded modules and compiled package objects
+export OPENSSL_CONF=/etc/ssl  # For phantomjs
+export TEXMFHOME="$HOME/.local/share/texmf" # Tex Live user tree for personal packages and styles. Moved from default ~/texmf to keep home directory cleaner.
 
 
 # make less more friendly for non-text input files, see lesspipe(1)
