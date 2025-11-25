@@ -146,13 +146,20 @@ dotfiles() {
 compdef _git dotfiles=git # Enable git completion for dotfiles function
 alias dotfiles-push='dotfiles push git@github.com:anthonyokc/dotfiles.git'
 alias dotfiles-pull='dotfiles pull git@github.com:anthonyokc/dotfiles.git'
-alias dr='dotfiles restore --staged'
-alias dc='dotfiles commit -m'
+alias da='dotfiles add'
 alias ds='dotfiles status'
-alias dd='dotfiles diff HEAD'
+alias dc='dotfiles commit -m'
+alias dd='dotfiles diff HEAD --' # The -- prevents issues when a file is named "HEAD"
 alias dp='dotfiles-push'
+alias dr='dotfiles restore --staged'
 alias dl='dotfiles log --oneline'
-alias dz='lazygit --git-dir=$HOME/dotfiles --work-tree=$HOME'
+dz()
+{
+    local prev_dir="$(pwd)"
+    cd "$HOME/dotfiles" || return 1
+    lazygit --git-dir="$HOME/dotfiles" --work-tree="$HOME"
+    cd "$prev_dir" || return 1
+}
 
 # tmux bare git repo
 alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
