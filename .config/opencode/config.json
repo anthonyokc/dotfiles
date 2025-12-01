@@ -36,6 +36,13 @@
     "input_newline": "ctrl+j",
   },
   "$schema": "https://opencode.ai/config.json",
+  "tui": {
+    "scroll_speed": 5,
+    "scroll_acceleration":
+      {
+        "enabled": true
+      }
+  },
   "provider": {
     "llamacpp": {
       "npm": "@ai-sdk/openai-compatible",
