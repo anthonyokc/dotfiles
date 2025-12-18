@@ -14,7 +14,7 @@ application/vnd.debian.binary-package=gdebi.desktop;org.gnome.Software.desktop;x
 application/x-shellscript=vim.desktop
 text/plain=vim.desktop
 text/x-matlab=vim.desktop
-application/x-yaml=rstudio.desktop
+application/x-yaml=vim.desktop
 text/csv=visidata.desktop
 text/tsv=visidata.desktop
 image/png=feh.desktop
@@ -23,7 +23,8 @@ image/png=feh.desktop
 # Default Applications are the preferred applications launched for a MIME type (usually the first in the Added Associations list)
 text/plain=vim.desktop
 application/x-shellscript=vim.desktop
-application/x-yaml=rstudio.desktop
+application/x-yaml=vim.desktop
+
 text/csv=visidata.desktop
 text/tsv=visidata.desktop
 application/pdf=custom-brave-browser.desktop
