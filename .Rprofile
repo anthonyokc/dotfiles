@@ -37,7 +37,7 @@ if (is.null(getOption("anthony.profile.loaded"))) {
     }
 
 
-    # Install/Load default add-on packages
+    # Install and load default add-on packages
     packages <- c(
       "devtools",
       "gitcreds",
@@ -47,7 +47,15 @@ if (is.null(getOption("anthony.profile.loaded"))) {
       "styler",
       "reprex",
       "precommit",
-      "lintr"
+      "lintr",
+      "readr",
+      "tidyr",
+      "stringr",
+      "lubridate",
+      "tibble",
+      "here",
+      "future",
+      "arrow"
     )
 
     for (package in packages) {
@@ -74,10 +82,51 @@ if (is.null(getOption("anthony.profile.loaded"))) {
 
     rm(package, package_clean, packages) # Clean up namespace
 
+    # Conflict preferences
+    # WARNING: This actually doesn't fix anything yet
+    # the options below do that. Hopefully future versions of conflicted will.
+    # cat("\n⚔️ Setting conflict preferences...\n")
+    # conflicted::conflicts_prefer(
+    #   dplyr::filter
+    # )
+
+    # Install but don't load packages, so we can set them as default
+    # This allows for loading after so their functions aren't masked
+    cat("\n⚔️ Setting these to load after defaults so their functions aren't masked...\n")
+    packages_to_default_load <- c(
+      "dplyr"
+    )
+
+    for (package in packages_to_default_load) {
+      # If package is from github, keeps only the package name
+      if (grepl("/", package)) {
+        package_clean <- gsub(".*/(.*)", "\\1", package)
+      } else {
+        package_clean <- package
+      }
+
+      if (suppressMessages(!requireNamespace(package))) {
+        renv::install(package, prompt = FALSE)
+        Sys.sleep(2)
+      }
+    }
+    cat(paste0(" ✔️ Loaded ", packages_to_default_load, "\n"), sep = "")
+
+    options(defaultPackages = c(
+      getOption("defaultPackages"),
+      packages_to_default_load
+    ))
+
     # Custom utility functions
     mv <- function(old_name, new_name) {
       assign(new_name, get(old_name, envir = .GlobalEnv), envir = .GlobalEnv)
       rm(list = old_name, envir = .GlobalEnv)
+    }
+
+    # targets future make
+    tmf <- function(names = NULL, ...) {
+      future::plan(future::multisession, workers = max(1, future::availableCores() - 1))
+      targets::tar_make_future(names = names, ...)
     }
 
     # Start httpgd server
@@ -103,6 +152,7 @@ if (is.null(getOption("anthony.profile.loaded"))) {
 
   cat("🌐 Setting CRAN mirror to Posit Package Manager with Linux binaries...\n")
   options(repos = c(CRAN = sprintf("https://p3m.dev/cran/latest/bin/linux/noble-%s/%s", R.version["arch"], substr(getRversion(), 1, 3))))
+  options(renv.config.repos.override = getOption("repos"))
 
   cat("😪 Disabling completion from languageserver to allow cmp_r to handle those...\n")
   options(
