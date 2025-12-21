@@ -1,3 +1,4 @@
+palette = 7=#ffffff
 # This is the configuration file for Ghostty.
 #
 # Run `ghostty +show-config --default --docs` to view a list of
@@ -33,7 +34,7 @@ background = #1b2b36
 theme = catppuccin-mocha.conf
 
 # GUI
-window-colorspace = display-p3
+# window-colorspace = display-p3
 window-decoration = true
 fullscreen = true
 macos-non-native-fullscreen = true
@@ -43,7 +44,11 @@ window-padding-y = 35,0
 window-padding-x = 5,0
 background-opacity = 0.95
 background-blur = 60
+# background-opacity = 1
+# background-blur = 60
 
 # Behavior
 mouse-hide-while-typing = true
 keybind = global:cmd+grave_accent=toggle_quick_terminal
+
+# custom-shader = ~/.config/ghostty/shaders/green-crt.glsl
