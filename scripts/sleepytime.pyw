@@ -15,6 +15,17 @@ PANEL_BG = "#1b263b"
 ACCENT = "#415a77"
 TEXT_PRIMARY = "#e0fbfc"
 TEXT_SECONDARY = "#cbd5e1"
+CONTENT_WIDTH = 780
+HINT_WRAP = 320
+TIME_COLORS = {
+    1: "#ef4444",  # red
+    2: "#fb923c",  # gentle orange
+    3: "#f59e0b",  # warmer amber
+    4: "#eab308",  # vivid yellow-gold
+    5: "#38bdf8",  # cool blue
+    6: "#a5d8ff",  # pale blue
+    7: "#ffffff",  # white
+}
 
 
 def enable_platform_dpi_awareness() -> None:
@@ -49,7 +60,7 @@ def generate_sleep_windows(extra_cycles: int = 6):
     now = datetime.now()
     wake_times = []
 
-    next_time = now + timedelta(minutes=14)
+    next_time = now + timedelta(hours=1, minutes=44)
     for increment in range(1, extra_cycles + 2):
         wake_times.append((increment, next_time))
         next_time += timedelta(hours=1, minutes=30)
@@ -126,7 +137,7 @@ def build_window():
         bg=BACKGROUND,
         fg=TEXT_PRIMARY,
         font=("Helvetica", 16, "bold"),
-        wraplength=520,
+        wraplength=CONTENT_WIDTH - 60,
         justify="left",
         pady=10,
     )
@@ -141,12 +152,12 @@ def build_window():
         bg=BACKGROUND,
         fg=TEXT_SECONDARY,
         font=("Helvetica", 12),
-        wraplength=520,
+        wraplength=CONTENT_WIDTH - 60,
         justify="left",
     )
     subheader.pack(padx=24, pady=(0, 10), anchor="w")
 
-    panel = tk.Frame(root, bg=PANEL_BG, highlightbackground=ACCENT, highlightthickness=1)
+    panel = tk.Frame(root, bg=PANEL_BG, highlightbackground=ACCENT, highlightthickness=1, width=CONTENT_WIDTH - 48)
     panel.pack(padx=24, pady=(0, 24), fill="x")
 
     for increment, wake_time in wake_windows:
@@ -166,15 +177,41 @@ def build_window():
         )
         index_label.pack(side="left")
 
+        time_container = tk.Frame(row, bg=PANEL_BG)
+        time_container.pack(side="left", expand=True, fill="x")
+
         time_label = tk.Label(
-            row,
+            time_container,
             text=f"{format_time(wake_time, now)}",
             anchor="w",
             bg=PANEL_BG,
-            fg=TEXT_PRIMARY,
+            fg=TIME_COLORS.get(increment, TEXT_PRIMARY),
             font=("Helvetica", 15),
         )
-        time_label.pack(side="left", expand=True, fill="x")
+        time_label.pack(side="left")
+
+        duration_label = tk.Label(
+            time_container,
+            text=f"{1.5 * increment:g} hours",
+            anchor="w",
+            bg=PANEL_BG,
+            fg=TEXT_SECONDARY,
+            font=("Helvetica", 11, "italic"),
+        )
+        duration_label.pack(side="left", padx=(12, 0))
+
+        if increment == 6:
+            hint_label = tk.Label(
+                row,
+                text="← If this is your wakeup time, start winding down",
+                anchor="w",
+                bg=PANEL_BG,
+                fg=TEXT_SECONDARY,
+                font=("Helvetica", 10, "italic"),
+                wraplength=HINT_WRAP,
+                justify="left",
+            )
+            hint_label.pack(side="right", padx=(8, 0))
 
     footer = tk.Frame(root, bg=BACKGROUND)
     footer.pack(padx=24, pady=(0, 24), fill="x")
@@ -197,6 +234,8 @@ def build_window():
     )
     close_hint.pack(side="right")
 
+    root.update_idletasks()
+    root.minsize(CONTENT_WIDTH, root.winfo_reqheight())
     center_window(root)
     root.mainloop()
 
