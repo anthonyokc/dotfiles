@@ -44,7 +44,8 @@ function find_and_clone_repo_and_connect_with_sesh() {
     # If user selected "Search fresh repos", wait for API and show full results
     if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
         # Wait for background API call to complete
-        run_with_exit_prompt "Searching for GitHub Repos..." bash -lc "wait $api_pid"
+        run_with_exit_prompt "Searching for GitHub Repos..." \
+          wait $api_pid;
 
         selection="$( \
             (

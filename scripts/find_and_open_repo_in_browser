@@ -32,7 +32,8 @@ function find_and_open_repo_in_browser() {
     # If user selected "Search fresh repos", wait for API and show full results
     if [[ "$selection" == "🔄 Search fresh repos..." ]]; then
         # Wait for background API call to complete; allow Esc to cancel the wait
-        run_with_exit_prompt "Searching for GitHub Repos..." bash -lc "wait $api_pid"
+        run_with_exit_prompt "Searching for GitHub Repos..." \
+          wait $api_pid;
 
         selection="$(
             (

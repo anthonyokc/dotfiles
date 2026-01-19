@@ -1,5 +1,6 @@
 #!/bin/bash
 # find_and_clone_repo: Clone a GitHub repository using fzf and gum
+# TODO: Why does this script exist?
 set -euo pipefail
 
 # Pull reusable spinners/exit helpers
