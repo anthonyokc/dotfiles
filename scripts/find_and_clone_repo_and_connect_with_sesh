@@ -8,10 +8,10 @@ source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
 function find_and_clone_repo_and_connect_with_sesh() {
     # Make sure your GitHub key is loaded in the agent first
     if ! ssh-add -l 2>/dev/null | grep -q 'fXGkqcOXmtBUEdVBJoKRMl8Z70mSACLYOF8NPQtaRxM'; then
-        if ! run_with_exit_prompt "Adding GitHub SSH key to agent, enter passphrase 🔒" \
+        if ! run_with_exit_prompt -i "Adding GitHub SSH key to agent, enter passphrase 🔒" \
             ssh-add ~/.ssh/github_ed25519; then
-            echo "❌  Could not add SSH key – aborting"
-            sleep 2
+            echo "❌  Could not add SSH key – press any key to exit"
+            read -n 1 -s -r keypress
             return 1
         fi
         echo "🎉 Success Added GitHub SSH key to agent!"
