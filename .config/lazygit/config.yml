@@ -1,0 +1,72 @@
+git:
+  # If true, do not spawn a separate process when using GPG
+  overrideGpg: true
+  pagers:
+    - colorArg: always
+      pager: delta --paging=never --side-by-side --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}"
+      # [Off while testing]
+      # pager: delta --no-gitconfig --paging=never --hyperlinks --hyperlinks-file-link-format="lazygit-edit://{path}:{line}" --navigate --line-numbers --features=catppuccin-mocha
+gui:
+  nerdFontsVersion: "3"
+  sidePanelWidth: 0.2
+  theme:
+    activeBorderColor:
+      - '#f5a97f'
+      - bold
+    inactiveBorderColor:
+      - '#a5adcb'
+    optionsTextColor:
+      - '#8aadf4'
+    selectedLineBgColor:
+      - '#363a4f'
+    cherryPickedCommitBgColor:
+      - '#494d64'
+    cherryPickedCommitFgColor:
+      - '#f5a97f'
+    unstagedChangesColor:
+      - '#ed8796'
+    defaultFgColor:
+      - '#cad3f5'
+    searchingActiveBorderColor:
+      - '#eed49f'
+  authorColors:
+    '*': '#b7bdf8'
+customCommands:
+  - key: "V"
+    context: "commits"
+    description: "Release: bump & tag selected commit with changelog"
+    prompts:
+      - type: "menu"
+        title: "Select version bump"
+        key: "bump"
+        options:
+          - value: "patch"
+            name: "patch   - bugfixes / tiny changes"
+          - value: "minor"
+            name: "minor   - new features, backwards compatible"
+          - value: "major"
+            name: "major   - breaking changes"
+    command: "create_new_git_tag_with_release_notes {{.Form.bump}} {{.SelectedLocalCommit.Sha}}"
+    loadingText: "Creating release tag with changelog..."
+  - key: "V"
+    context: "commits"
+    description: "Release: bump & tag selected commit with changelog"
+    prompts:
+      - type: "menu"
+        title: "Select version bump"
+        key: "bump"
+        options:
+          - value: "patch"
+            name: "patch   - bugfixes / tiny changes"
+          - value: "minor"
+            name: "minor   - new features, backwards compatible"
+          - value: "major"
+            name: "major   - breaking changes"
+    command: "create_new_git_tag_with_release_notes_for_dotfiles {{.Form.bump}} {{.SelectedLocalCommit.Sha}}"
+    loadingText: "Creating release tag with changelog..."
+  - key: "R"
+    context: "tags"
+    description: "Release: create GitHub release for tag"
+    command: "~/scripts/create_new_github_release {{.SelectedTag.Name}}"
+    loadingText: "Creating GitHub release..."
+    output: terminal
