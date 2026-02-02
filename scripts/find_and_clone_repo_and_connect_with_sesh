@@ -107,12 +107,55 @@ function find_and_clone_repo_and_connect_with_sesh() {
        if [[ $repo_type == "Normal Git Repo" ]]; then
            run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
                git clone "git@github.com:$repo.git" "$repo_dir"
+
+           # Connect with sesh
+           sesh connect "$repo_dir"
        else
            run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
                git-clone-bare-for-worktrees.sh "git@github.com:$repo.git" "$repo_dir"
-       fi
 
-       sesh connect "$repo_dir"
+            # Check which branch exists (main or master) and connect to it
+            repo_root="$repo_dir"
+            if [[ -d "$repo_root/main" ]]; then
+              printf "💻 Sesh connecting to $repo_root/main..."
+              sesh connect "$repo_root/main"
+            elif [[ -d "$repo_root/master" ]]; then
+              printf "💻 Sesh connecting to $repo_root/master..."
+              sesh connect "$repo_root/master"
+            else
+              # If neither main nor master exists, connect to the first worktree
+              worktree_dir="$(git -C "$repo_root" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -n 1)"
+              if [[ -n "$worktree_dir" && "$worktree_dir" == "$repo_root" ]]; then
+                if [[ "$(git -C "$repo_root" rev-parse --is-bare-repository)" == "true" ]]; then
+                  worktree_dir=""
+                fi
+              fi
+              if [[ -n "$worktree_dir" ]]; then
+                printf "💻 Sesh connecting to $worktree_dir..."
+                sesh connect "$worktree_dir"
+              else
+                # No worktrees exist, create one from main/master/first branch
+                printf "🌱 No branch directories found, creating worktree..."
+                target_branch=""
+                if git -C "$repo_root" show-ref --verify --quiet refs/heads/main; then
+                  target_branch="main"
+                elif git -C "$repo_root" show-ref --verify --quiet refs/heads/master; then
+                  target_branch="master"
+                else
+                  target_branch="$(git -C "$repo_root" for-each-ref --format='%(refname:short)' refs/heads | head -n 1)"
+                fi
+
+                if [[ -z "$target_branch" ]]; then
+                  printf "❌ No branches found to create a worktree."
+                  return 1
+                fi
+
+                git -C "$repo_root" worktree add "$target_branch" "$target_branch"
+                printf "💻 Sesh connecting to $repo_root/$target_branch..."
+                sesh connect "$repo_root/$target_branch"
+              fi
+            fi
+       fi
     fi
 }
 
