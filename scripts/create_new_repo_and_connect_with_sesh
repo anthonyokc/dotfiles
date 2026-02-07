@@ -66,7 +66,7 @@ function create_new_repo_and_connect_with_sesh() {
       fi
 
       # Open the repository URL in the default web browser
-      if ! gh repo view "$github_user/$repo_dir" --web; then
+      if ! gh repo view "$github_user/$repo_dir" --web 2>/dev/null; then
         printf "⚠️  Failed to open repo in browser (gh repo view --web). Continuing...\n"
       fi
 
@@ -87,7 +87,6 @@ function create_new_repo_and_connect_with_sesh() {
         gum spin --title "Cloning from GitHub into $github_user_dir/$repo_dir" -- \
           git-clone-bare-for-worktrees.sh "git@github.com:$github_user/$repo_dir.git" "$github_user_dir/$repo_dir"
         printf "Done! 🎉"
-        sleep 1
 
         # Check which branch exists (main or master) and connect to it
         repo_root="$github_user_dir/$repo_dir"
