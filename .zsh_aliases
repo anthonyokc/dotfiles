@@ -33,6 +33,15 @@ treee() {
 # rm aliases
 alias rm='rm -Iv' # interactive, verbose
 
+# trash aliases
+tra() {
+  (( $# )) || return 0
+  printf '%s\n' "$@"
+  read "ans?Trash these files? [y/N] "
+  echo
+  [[ $ans == [Yy]* ]] && trash -- "$@"
+}
+
 # sed aliases
 splitspace() {
     echo "$1" | sed 's/ /\n/g'
