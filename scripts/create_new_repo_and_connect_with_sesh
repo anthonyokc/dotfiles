@@ -2,9 +2,11 @@
 set -euo pipefail
 
 source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
 
 # fzf fuzzy search of git repositories, then clone
 function create_new_repo_and_connect_with_sesh() {
+  ensure_github_ssh_key_loaded
 
   GITHUB_USERNAME="$(run_with_exit_prompt "Fetching GitHub profile…" gh api user --jq '.login')"
   github_users=("$GITHUB_USERNAME" "$GITHUB_ORG")

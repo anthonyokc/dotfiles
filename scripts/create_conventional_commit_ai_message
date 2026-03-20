@@ -8,6 +8,8 @@
 # Usage instructions are defined below for quick reference.
 set -euo pipefail
 
+source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
+
 usage() {
   cat <<EOF
 Usage: $SCRIPT_NAME [--all|--staged] [--model provider/model]
@@ -26,7 +28,7 @@ EOF
 
 SCRIPT_NAME="$(basename "$0")"
 DIFF_MODE="staged"
-REQUESTED_MODEL="${OPENCODE_MODEL:-opencode/kimi-k2}"
+REQUESTED_MODEL="${OPENCODE_MODEL:-opencode/kimi-k2.5}"
 OC_BIN="${OPENCODE_BIN:-$(command -v opencode 2>/dev/null || true)}"
 GUM_BIN="${GUM_BIN:-$(command -v gum 2>/dev/null || true)}"
 
@@ -333,6 +335,24 @@ run_git() {
       "$@"
 }
 
+ensure_signing_key_loaded_if_needed() {
+  local gpg_format
+  gpg_format="$(run_git config --get gpg.format 2>/dev/null || true)"
+  if [[ "$gpg_format" != "ssh" ]]; then
+    return 0
+  fi
+
+  local commit_gpgsign
+  commit_gpgsign="$(run_git config --get commit.gpgsign 2>/dev/null || true)"
+  if [[ "$commit_gpgsign" != "true" ]]; then
+    return 0
+  fi
+
+  local signing_key
+  signing_key="$(run_git config --get user.signingkey 2>/dev/null || true)"
+  ensure_git_signing_ssh_key_loaded "$signing_key"
+}
+
 EMPTY_TREE_HASH="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 get_base_tree() {
@@ -547,6 +567,7 @@ main() {
     case "$action" in
       Commit)
         printf '\nCommitting...\n'
+        ensure_signing_key_loaded_if_needed
         if ! run_git commit -m "$message"; then
           fail 'Commit failed.'
         fi

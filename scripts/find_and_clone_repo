@@ -5,9 +5,11 @@ set -euo pipefail
 
 # Pull reusable spinners/exit helpers
 source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
+source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
 
 # fzf fuzzy search of git repositories, then clone
 function find_and_clone_repo() {
+    ensure_github_ssh_key_loaded
 
     selection="$(
         (

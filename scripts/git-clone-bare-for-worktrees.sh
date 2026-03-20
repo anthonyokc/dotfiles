@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
+
 # Examples of call:
 # git-clone-bare-for-worktrees git@github.com:name/repo.git
 # => Clones to a /repo directory
@@ -33,6 +35,10 @@ fi
 url=$1
 basename=${url##*/}
 name=${2:-${basename%.*}}
+
+if [[ "$url" == git@*:* || "$url" == ssh://* ]]; then
+    ensure_github_ssh_key_loaded
+fi
 
 mkdir $name
 cd "$name"
