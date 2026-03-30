@@ -34,6 +34,7 @@ treee() {
 alias rm='rm -Iv' # interactive, verbose
 
 # trash aliases
+# Fix to recursively display files when using trash with multiple files/directories
 tra() {
   (( $# )) || return 0
   printf '%s\n' "$@"
