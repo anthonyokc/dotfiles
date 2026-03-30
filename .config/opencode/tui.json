@@ -1,4 +1,5 @@
 {
+  "$schema": "https://opencode.ai/tui.json",
   "theme": "catppuccin",
   "keybinds": {
     "leader": "ctrl+k",
@@ -25,6 +26,7 @@
     "messages_undo": "<leader>u",
     "messages_redo": "<leader>r",
     "model_list": "<leader>m",
+    "model_provider_list": "<leader>p",
     "model_cycle_recent": "f2",
     "model_cycle_recent_reverse": "shift+f2",
     "agent_list": "<leader>a",
@@ -33,31 +35,10 @@
     "input_clear": "ctrl+u",
     "input_paste": "ctrl+v",
     "input_submit": "enter",
-    "input_newline": "ctrl+j",
+    "input_newline": "ctrl+j"
   },
-  "$schema": "https://opencode.ai/config.json",
-  "tui": {
-    "scroll_speed": 5,
-    "scroll_acceleration":
-      {
-        "enabled": true
-      }
-  },
-  "provider": {
-    "llamacpp": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "llama.cpp (local)",
-      "options": {
-        "baseURL": "http://127.0.0.1:8080/v1"
-      },
-      "models": {
-        "qwen2.5-coder-7b-instruct-gguf-g8_0": {
-          "name": "Qwen2.5 Coder 7B Instruct (8-bit)"
-        },
-        "qwen2.5-coder-7b-instruct-q4_k_m": {
-          "name": "Qwen2.5 Coder 7B Instruct (4-bit K-M)"
-        }
-      }
-    }
-  },
+  "scroll_speed": 5,
+  "scroll_acceleration": {
+    "enabled": true
+  }
 }

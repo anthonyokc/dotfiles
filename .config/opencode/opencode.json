@@ -1,0 +1,58 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "opencode-cursor-oauth"
+  ],
+  "provider": {
+    "cursor": {
+      "name": "Cursor"
+    },
+    "togetherai": {
+      "models": {
+        "Qwen/Qwen3.5-9B": {}
+      }
+    },
+    "lmstudio": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LM Studio (local)",
+      "options": {
+        "baseURL": "http://100.98.206.177:1234/v1"
+      },
+      "models": {
+        "liquid/lfm2.5-1.2b": {
+          "name": "Liquid LFM-2.5 1.2B"
+        },
+      }
+    },
+    "rapid-mlx": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Rapid MLX",
+      "options": {
+        "baseURL": "https://anthonys-macbook-pro.tail69958b.ts.net/v1",
+      },
+      "models": {
+        "qwen3.5-9b": {
+          "name": "Qwen3.5 9B"
+        },
+        "qwen3.5-4b": {
+          "name": "Qwen3.5 4B"
+        }
+      }
+    },
+    "llamacpp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "llama.cpp (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8080/v1"
+      },
+      "models": {
+        "qwen2.5-coder-7b-instruct-gguf-g8_0": {
+          "name": "Qwen2.5 Coder 7B Instruct (8-bit)"
+        },
+        "qwen2.5-coder-7b-instruct-q4_k_m": {
+          "name": "Qwen2.5 Coder 7B Instruct (4-bit K-M)"
+        }
+      }
+    }
+  }
+}
