@@ -177,6 +177,14 @@ source <(carapace _carapace)                            # registers all complete
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
 
+# Set up wt (worktrunk), a tool for managing git worktrees.
+# Sets completions, functions, and shell integration, but only if it's installed.
+# This allows for behavior like changing directories cleanly after a worktree switch/create action
+# Since it isn't done through a subprocess.
+if command -v wt >/dev/null 2>&1; then
+  eval "$(command wt config shell init zsh)";
+fi
+
 # ZSH Syntax Highlighting Configurations
 export ZSH_HIGHLIGHT_MAXLENGTH=200    # or 0 to disable on very long lines
 
