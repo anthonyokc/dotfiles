@@ -5,10 +5,9 @@ zmodload zsh/zprof
 # ZSH Keybindings ⌨️
 # ZSH Completion ⚡
 # Path Modifications 📁
-# My Configs 🌐
-# My Commands 🛠
-# My Aliases 🕵️
-# My Functions 🏭
+# Autoload Various Tools ⚙️ (after path modifications)
+# Environment Variables 🌐
+# My Aliases and Functions🕵️
 # Plugins continued! 🔌
 
 
@@ -202,7 +201,7 @@ export TEXMFHOME="$HOME/.local/share/texmf" # Tex Live user tree for personal pa
 
 
 
-### My Aliases 🕵️
+# My Aliases and Functions🕵️
 if [ -f ~/.zsh_aliases ]; then
     . ~/.zsh_aliases
 fi
@@ -235,4 +234,3 @@ plug "zsh-users/zsh-autosuggestions"
 # It colors the command line right before it's drawn
 # Must be last or it can break or override everything else.
 plug "zsh-users/zsh-syntax-highlighting"
-
