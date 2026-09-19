@@ -1,4 +1,17 @@
 if (is.null(getOption("anthony.profile.loaded"))) {
+  rprofile_packages_file <- path.expand("~/.Rprofile_packages")
+  if (file.exists(rprofile_packages_file)) {
+    anthony_rprofile_packages_available <- TRUE
+    source(rprofile_packages_file)
+  } else {
+    anthony_rprofile_packages_available <- FALSE
+    warning("R profile package configuration does not exist at ", rprofile_packages_file)
+    anthony_rprofile_packages <- character()
+    anthony_rprofile_default_packages <- character()
+    anthony_validate_rprofile_packages <- function() invisible(character())
+  }
+  rm(rprofile_packages_file)
+
   if (interactive()) {
     cat("⚙️ Loading Interactive .Rprofile Settings...\n")
     cat("--------------------------------------------\n")
@@ -6,9 +19,43 @@ if (is.null(getOption("anthony.profile.loaded"))) {
       quit(save = save, ...)
     }
 
+    # Keep renv's project library first when a project is active.
+    user_library <- Sys.getenv("R_LIBS_USER")
+
+    if (!dir.exists(user_library)) {
+      dir.create(user_library, recursive = TRUE, showWarnings = FALSE)
+    }
+
+    if (!nzchar(Sys.getenv("RENV_PROJECT"))) {
+      .libPaths(c(user_library, .libPaths()))
+    }
+
     # Setup renv
     cat("📦 Setting up renv...\n")
     if (!requireNamespace("renv", quietly = TRUE)) utils::install.packages("renv")
+
+    cat("🌐 Setting CRAN mirror to Posit Package Manager with Linux binaries...\n")
+    r_version <- paste(R.version$major, strsplit(R.version$minor, ".", fixed = TRUE)[[1]][1], sep = ".")
+    r_arch <- R.version$arch
+    p3m_repo <- sprintf(
+      "https://p3m.dev/cran/latest/bin/linux/noble-%s/%s",
+      r_arch,
+      r_version
+    )
+    options(repos = c(CRAN = p3m_repo))
+    options(renv.config.repos.override = getOption("repos"))
+
+    if (Sys.getenv("RNVIM_TMPDIR") != "" && !requireNamespace("nvimcom", quietly = TRUE)) {
+      nvimcom_path <- "~/.local/share/nvim/lazy/R.nvim/nvimcom"
+
+      if (dir.exists(path.expand(nvimcom_path))) {
+        renv::install(nvimcom_path, prompt = FALSE)
+      } else {
+        warning("R.nvim started R, but bundled nvimcom source was not found at: ", nvimcom_path)
+      }
+
+      rm(nvimcom_path)
+    }
 
     rs <- function() {
       renv::status()
@@ -36,27 +83,23 @@ if (is.null(getOption("anthony.profile.loaded"))) {
       }
     }
 
-
-    # Install and load default add-on packages
-    packages <- c(
-      "devtools",
-      "gitcreds",
-      "quarto",
-      "targets",
-      "nx10/httpgd",
-      "styler",
-      "reprex",
-      "precommit",
-      "lintr",
-      "readr",
-      "tidyr",
-      "stringr",
-      "lubridate",
-      "tibble",
-      "here",
-      "future",
-      "arrow"
-    )
+    # Install, validate, and load default add-on packages
+    packages <- anthony_rprofile_packages
+    if (anthony_rprofile_packages_available) {
+      installer <- path.expand("~/scripts/install_rprofile_packages")
+      active_project <- Sys.getenv("RENV_PROJECT")
+      installer_args <- if (nzchar(active_project)) {
+        c("--project", shQuote(active_project))
+      } else {
+        character()
+      }
+      install_status <- system2(installer, args = installer_args)
+      if (!identical(install_status, 0L)) {
+        stop("R profile package installation or validation failed.", call. = FALSE)
+      }
+      anthony_validate_rprofile_packages()
+      rm(active_project, install_status, installer, installer_args)
+    }
 
     for (package in packages) {
       # If package is from github, keeps only the package name
@@ -64,12 +107,6 @@ if (is.null(getOption("anthony.profile.loaded"))) {
         package_clean <- gsub(".*/(.*)", "\\1", package)
       } else {
         package_clean <- package
-      }
-
-      # Checks if packages are installed, if not, installs with renv
-      if (suppressMessages(!requireNamespace(package_clean))) {
-        renv::install(package, prompt = FALSE)
-        Sys.sleep(2)
       }
 
       suppressPackageStartupMessages(
@@ -93,23 +130,8 @@ if (is.null(getOption("anthony.profile.loaded"))) {
     # Install but don't load packages, so we can set them as default
     # This allows for loading after so their functions aren't masked
     cat("\n⚔️ Setting these to load after defaults so their functions aren't masked...\n")
-    packages_to_default_load <- c(
-      "dplyr"
-    )
+    packages_to_default_load <- anthony_rprofile_default_packages
 
-    for (package in packages_to_default_load) {
-      # If package is from github, keeps only the package name
-      if (grepl("/", package)) {
-        package_clean <- gsub(".*/(.*)", "\\1", package)
-      } else {
-        package_clean <- package
-      }
-
-      if (suppressMessages(!requireNamespace(package))) {
-        renv::install(package, prompt = FALSE)
-        Sys.sleep(2)
-      }
-    }
     cat(paste0(" ✔️ Loaded ", packages_to_default_load, "\n"), sep = "")
 
     options(defaultPackages = c(
@@ -129,27 +151,24 @@ if (is.null(getOption("anthony.profile.loaded"))) {
       targets::tar_make_future(names = names, ...)
     }
 
-    # Start httpgd server
-    cat("\n📊 Starting httpgd server on port 3333...\n")
-    options(
-      httpgd.port = 3333,
-      httpgd.token = FALSE
-    )
+    # Configure httpgd over Tailscale Serve
+    httpgd_tailscale <- "~/.Rprofile_tailscale"
+    if (file.exists(httpgd_tailscale)) {
+      source(httpgd_tailscale)
+    }
 
-    options(
-      httpgd = list(
-        zoom = 1.5,
-        width = 1500,
-        height = 1500
-      )
-    )
+    # Use custom script to open with default Windows browser within WSL
+    options(browser = function(url) {
+      system2("brave_wsl_open.sh", url, wait = FALSE)
+    })
   }
 
   cat("\n⚙️ Loading Non-Interactive .Rprofile Settings...\n")
   cat("--------------------------------------------------\n")
 
-  # If Linux Only
+  source("~/.Rprofile_helpers")
 
+  # If Linux Only
   cat("🌐 Setting CRAN mirror to Posit Package Manager with Linux binaries...\n")
   options(repos = c(CRAN = sprintf("https://p3m.dev/cran/latest/bin/linux/noble-%s/%s", R.version["arch"], substr(getRversion(), 1, 3))))
   options(renv.config.repos.override = getOption("repos"))
@@ -170,4 +189,3 @@ if (is.null(getOption("anthony.profile.loaded"))) {
 
   options(anthony.profile.loaded = TRUE)
 }
-
