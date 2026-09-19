@@ -27,7 +27,6 @@ plug "romkatv/powerlevel10k" # A theme for Zsh
 setopt glob_dots # Include hidden files in globbing, e.g., `ls *` will include files starting with a dot
 setopt histignorealldups # Ignore duplicated commands in history, keeping only the most recent
 setopt sharehistory # Share history between all sessions, so commands typed in one session are available in others
-setopt CORRECT # Enable command correction, e.g., if you type `gti` instead of `git`, it will suggest the correct command
 
 # ZLE (Zsh Line Editor) options,
 set enable-bracketed-paste off
