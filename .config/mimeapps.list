@@ -6,6 +6,8 @@
 
 # The format is documented at http://www.freedesktop.org/Standards/mime-app
 
+# Most of these are defined at ~/.local/share/applications/
+
 [Added Associations]
 # Added Associations are all applications associated with a MIME type (both default and non-default)
 application/x-theme=org.xfce.mousepad.desktop
@@ -27,16 +29,28 @@ application/x-yaml=vim.desktop
 
 text/csv=visidata.desktop
 text/tsv=visidata.desktop
-application/pdf=custom-brave-browser.desktop
+
 image/png=feh.desktop
+image/bmp=feh.desktop
+image/gif=feh.desktop
+image/jpeg=feh.desktop
+image/png=feh.desktop
+image/svg+xml=feh.desktop
+image/tiff=feh.desktop
+
 # These setup a "custom Brave Browser" so that it opens the Windows Brave Browser while using WSL
+text/markdown=custom-brave-browser.desktop
 text/html=custom-brave-browser.desktop
+application/pdf=custom-brave-browser.desktop
 x-scheme-handler/http=custom-brave-browser.desktop
 x-scheme-handler/https=custom-brave-browser.desktop
 x-scheme-handler/about=custom-brave-browser.desktop
 x-scheme-handler/unknown=custom-brave-browser.desktop
+
 # Use Windows Exlorer for opening folders from WSL
 inode/directory=wsl-explorer.desktop
+
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 
 [Removed Associations]
 # Removed Associations are applications that were previously associated with a MIME type but have been removed
