@@ -1,34 +1,88 @@
 {
+  "permission": {
+    "skill": { "orchestration-preflight": "deny", "orchestration-astra": "deny" },
+    "task": {
+      "sol-*": "deny"
+    }
+  },
   "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
   "plugin": [
-    "opencode-cursor-oauth"
+    "cursor-opencode-provider@0.6.6",
+    "@plannotator/opencode@latest",
+    "./plugins/moshi-hooks.ts"
   ],
+  "tools": {
+    "notion_*": false
+  },
+  "subagent_depth": 1,
+  "agent": {
+    "build-local": {
+      "description": "Private local agent for the SGLang Qwen3.8 model, with Notion access.",
+      "mode": "primary",
+      "model": "sglang/RadixArk/Qwen3.8-27B-NVFP4",
+      "tools": {
+        "notion_*": true
+      }
+    }
+  },
   "provider": {
-    "cursor": {
-      "name": "Cursor"
-    },
-    "togetherai": {
+    "opencode": {
       "models": {
-        "Qwen/Qwen3.5-9B": {}
+        "kimi-k2.5": {
+          "variants": {
+            "no-thinking": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          }
+        },
+        "kimi-k2.6": {
+          "variants": {
+            "no-thinking": {
+              "thinking": {
+                "type": "disabled"
+              }
+            }
+          }
+        }
       }
     },
     "lmstudio": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "LM Studio (local)",
+      "name": "LM Studio (desktop)",
       "options": {
-        "baseURL": "http://100.98.206.177:1234/v1"
+        "baseURL": "https://desktop.tail69958b.ts.net:1234/v1"
       },
       "models": {
-        "liquid/lfm2.5-1.2b": {
-          "name": "Liquid LFM-2.5 1.2B"
+        "qwen3.8-27b": {
+          "name": "Qwen3.8 27B - Q4",
+          "tool_call": true
         },
+        "qwen3.6-35b-a3b": {
+          "name": "Qwen3.6 35B-A4B - Q4",
+          "tool_call": true
+        },
+        "qwen3.5-4b": {
+          "name": "Qwen3.5 4B - Q4",
+          "tool_call": true
+        },
+        "qwen3.5-0.8b": {
+          "name": "Qwen3.5 0.8B - Q4",
+          "tool_call": true
+        },
+        "qwopus3.5-9b-v3": {
+          "name": "Qwopus3.5 9B v3",
+          "tool_call": true
+        }
       }
     },
     "rapid-mlx": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "Rapid MLX",
       "options": {
-        "baseURL": "https://anthonys-macbook-pro.tail69958b.ts.net/v1",
+        "baseURL": "https://anthonys-macbook-pro.tail69958b.ts.net/v1"
       },
       "models": {
         "qwen3.5-9b": {
@@ -46,6 +100,9 @@
         "baseURL": "http://127.0.0.1:8080/v1"
       },
       "models": {
+        "prism-ml-bonsai-8b-gguf": {
+          "name": "Bonsai 8B (1-bit)"
+        },
         "qwen2.5-coder-7b-instruct-gguf-g8_0": {
           "name": "Qwen2.5 Coder 7B Instruct (8-bit)"
         },
@@ -53,6 +110,103 @@
           "name": "Qwen2.5 Coder 7B Instruct (4-bit K-M)"
         }
       }
+    },
+    "vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "vLLM (local)",
+      "options": {
+        "baseURL": "https://127.0.0.1:8000/v1"
+      },
+      "models": {
+        "qwen3.5-9b": {
+          "name": "Qwen3.5 9B"
+        }
+      }
+    },
+    "sglang": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "SGLang (local)",
+      "options": {
+        "baseURL": "http://127.0.0.1:30000/v1",
+        "apiKey": "EMPTY"
+      },
+      "models": {
+        "RadixArk/Qwen3.8-27B-NVFP4": {
+          "name": "Qwen3.8 27B NVFP4",
+          "reasoning": true,
+          "tool_call": true,
+          "variants": {
+            "low": {
+              "reasoningEffort": "low",
+              "chat_template_kwargs": {
+                "preserve_thinking": true
+              }
+            },
+            "medium": {
+              "reasoningEffort": "medium",
+              "chat_template_kwargs": {
+                "preserve_thinking": true
+              }
+            },
+            "xhigh": {
+              "reasoningEffort": "xhigh",
+              "chat_template_kwargs": {
+                "preserve_thinking": true
+              }
+            },
+            "none": {
+              "chat_template_kwargs": {
+                "enable_thinking": false
+              }
+            }
+          },
+          "interleaved": {
+            "field": "reasoning_content"
+          },
+          "limit": {
+            "context": 53000,
+            "output": 4096
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    },
+    "cursor": {
+      "name": "Cursor",
+      "npm": "cursor-opencode-provider@0.6.6",
+      "models": {}
+    }
+  },
+  "mcp": {
+    "notion": {
+      "type": "remote",
+      "url": "https://mcp.notion.com/mcp",
+      "enabled": true
+    },
+    "r-btw-readonly": {
+      "type": "local",
+      "command": [
+        "Rscript",
+        "-e",
+        "btw::btw_mcp_server(tools = btw::btw_tools(c('docs', 'pkg', 'env', 'sessioninfo')))"
+      ],
+      "enabled": false
+    },
+    "r-btw-run": {
+      "type": "local",
+      "command": [
+        "Rscript",
+        "-e",
+        "options(btw.run_r.enabled = TRUE); btw::btw_mcp_server(tools = btw::btw_tools(c('env', 'run', 'docs', 'pkg', 'sessioninfo')))"
+      ],
+      "enabled": true
     }
   }
 }
