@@ -31,6 +31,7 @@
     navigate = true
     side-by-side = true
     line-numbers = true
+    wrap-max-lines = 10
     features = catppuccin-mocha
 [credential]
 	helper = cache
