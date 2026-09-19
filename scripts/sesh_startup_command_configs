@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+selected_dir=$(tv dirs "$HOME/.config" --source-command "fd -t d -d 1 . '$HOME/.config'")
+[ -z "$selected_dir" ] && exec "${SHELL:-bash}"
+
+cd "$selected_dir" || exec "${SHELL:-bash}"
+tv files . --keybindings 'enter="actions:edit"'
+
+exec "${SHELL:-bash}"

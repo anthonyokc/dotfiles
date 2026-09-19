@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Read-only estimate:
+# Windows-side VHDX size - Linux-side used space for / = approximate reclaimable space after compaction.
+
+pkg="CanonicalGroupLimited.Ubuntu_79rhkp1fndgsc"
+
+win_user="${WIN_USER:-${USERPROFILE:-}}"
+
+if [[ -z "$win_user" ]]; then
+  win_user="$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r')"
+fi
+
+# Prefer LOCALAPPDATA from Windows, converted to WSL path.
+local_appdata_win="$(cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null | tr -d '\r')"
+
+if [[ -z "$local_appdata_win" || "$local_appdata_win" == "%LOCALAPPDATA%" ]]; then
+  local_appdata="/mnt/c/Users/${win_user}/AppData/Local"
+else
+  local_appdata="$(wslpath -u "$local_appdata_win")"
+fi
+
+local_state="${local_appdata}/Packages/${pkg}/LocalState"
+vhdx="${local_state}/ext4.vhdx"
+
+if [[ ! -f "$vhdx" ]]; then
+  echo "Could not find VHDX:"
+  echo "  $vhdx"
+  echo
+  echo "Ubuntu package folders found:"
+  find "${local_appdata}/Packages" -maxdepth 1 -type d -iname 'CanonicalGroupLimited.Ubuntu*' -print 2>/dev/null || true
+  exit 1
+fi
+
+vhdx_bytes="$(stat -c '%s' "$vhdx")"
+used_bytes="$(df -B1 / | awk 'NR==2 {print $3}')"
+reclaimable_bytes="$((vhdx_bytes - used_bytes))"
+
+gib() {
+  awk -v b="$1" 'BEGIN { printf "%.2f GiB", b / 1024 / 1024 / 1024 }'
+}
+
+echo "WSL VHDX path:        $vhdx"
+echo "Windows VHDX size:    $(gib "$vhdx_bytes")"
+echo "WSL / used space:     $(gib "$used_bytes")"
+echo "Approx reclaimable:   $(gib "$reclaimable_bytes")"
+echo
+echo "Read-only estimate. This does not compact or modify the VHDX."

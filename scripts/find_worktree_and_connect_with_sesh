@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$HOME/scripts/helpers/worktree_sesh.sh"
+
+require_worktree_command
+if [[ "${1:-}" == "--list" ]]; then
+  repo_dir="$(resolve_worktree_repo "${2:-$PWD}")"
+else
+  repo_dir="$(resolve_worktree_repo "${1:-$PWD}")"
+fi
+rows="$(list_worktree_rows "$repo_dir")"
+
+if [[ "${1:-}" == "--list" ]]; then
+  printf '%s\n' "$rows"
+  exit
+fi
+
+if [[ -z "$rows" ]]; then
+  printf 'No worktrees found.\n' >&2
+  exit 1
+fi
+
+selected_row="$(pick_worktree_row "$rows")" || exit 0
+IFS=$'\t' read -r _ branch path _ <<<"$selected_row"
+connect_worktree_with_sesh "$path" "$branch"

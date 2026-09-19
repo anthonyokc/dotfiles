@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [[ "$#" -ne 0 && ( "$#" -ne 2 || "$1" != "--project" ) ]]; then
+  echo "Usage: install_rprofile_packages [--project PROJECT_PATH]" >&2
+  exit 64
+fi
+
+project_args=()
+if [[ "$#" -eq 2 ]]; then
+  project=$(realpath -m -- "$2")
+  if [[ ! -f "$project/renv.lock" ]]; then
+    echo "Cannot install R profile packages: renv.lock does not exist in $project." >&2
+    exit 64
+  fi
+  project_args=("$project")
+elif [[ -f "renv.lock" ]]; then
+  project=$(realpath -m -- ".")
+  project_args=("$project")
+fi
+
+Rscript --vanilla "$HOME/scripts/install_rprofile_packages.R" "${project_args[@]}"

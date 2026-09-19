@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [[ "$#" -ne 2 ]]; then
+  echo "Usage: wt_symlink PRIMARY_WORKTREE_PATH TARGET_WORKTREE_PATH" >&2
+  exit 64
+fi
+
+if [[ -z "$1" || -z "$2" ]]; then
+  echo "Cannot create shared-path links: worktree paths must not be empty." >&2
+  exit 64
+fi
+
+primary_worktree=$(realpath -m -- "$1")
+target_worktree=$(realpath -m -- "$2")
+
+if [[ "$primary_worktree" == "$target_worktree" ]]; then
+  echo "Cannot create shared-path links: primary and target worktrees are identical." >&2
+  exit 64
+fi
+
+status=0
+
+link_shared_path() {
+  local relative_path=$1
+  source_path="$primary_worktree/$relative_path"
+  destination_path="$target_worktree/$relative_path"
+
+  if [[ ! -e "$source_path" && ! -L "$source_path" ]]; then
+    echo "Skipped $relative_path: source does not exist at $source_path."
+    return
+  fi
+
+  if [[ -L "$destination_path" ]]; then
+    link_target=$(readlink -- "$destination_path")
+    if [[ "$link_target" == /* ]]; then
+      resolved_target=$(realpath -m -- "$link_target")
+    else
+      resolved_target=$(realpath -m -- "$(dirname -- "$destination_path")/$link_target")
+    fi
+
+    if [[ "$resolved_target" == "$(realpath -m -- "$source_path")" ]]; then
+      echo "Unchanged $relative_path: $destination_path already links to $source_path."
+    else
+      echo "Conflict for $relative_path: $destination_path is an incorrect symbolic link to $link_target." >&2
+      status=1
+    fi
+    return
+  fi
+
+  if [[ -f "$destination_path" ]]; then
+    echo "Conflict for $relative_path: refusing to replace regular file $destination_path." >&2
+    status=1
+    return
+  fi
+
+  if [[ -d "$destination_path" ]]; then
+    echo "Conflict for $relative_path: refusing to replace directory $destination_path." >&2
+    status=1
+    return
+  fi
+
+  if [[ -e "$destination_path" ]]; then
+    echo "Conflict for $relative_path: refusing to replace existing path $destination_path." >&2
+    status=1
+    return
+  fi
+
+  mkdir -p -- "$(dirname -- "$destination_path")"
+  ln -s -- "$source_path" "$destination_path"
+  echo "Linked $relative_path: $destination_path -> $source_path."
+}
+
+link_shared_path ".env"
+
+for relative_root in "data/input" "data/output"; do
+  source_root="$primary_worktree/$relative_root"
+  destination_root="$target_worktree/$relative_root"
+
+  if [[ ! -d "$source_root" ]]; then
+    echo "Skipped $relative_root: source directory does not exist at $source_root."
+    continue
+  fi
+
+  if [[ -L "$destination_root" || ( -e "$destination_root" && ! -d "$destination_root" ) ]]; then
+    echo "Conflict for $relative_root: expected directory at $destination_root." >&2
+    status=1
+    continue
+  fi
+
+  mkdir -p -- "$destination_root"
+  shopt -s nullglob dotglob
+  source_entries=("$source_root"/*)
+  shopt -u nullglob dotglob
+
+  for source_entry in "${source_entries[@]}"; do
+    relative_path="$relative_root/$(basename -- "$source_entry")"
+    mapfile -t tracked_paths < <(git -C "$primary_worktree" ls-files -- "$relative_path")
+
+    if (( ${#tracked_paths[@]} > 0 )); then
+      echo "Preserved $relative_path: path is tracked by Git."
+      continue
+    fi
+
+    if ! git -C "$primary_worktree" check-ignore -q -- "$relative_path"; then
+      echo "Skipped $relative_path: path is not ignored by Git."
+      continue
+    fi
+
+    link_shared_path "$relative_path"
+  done
+done
+
+exit "$status"

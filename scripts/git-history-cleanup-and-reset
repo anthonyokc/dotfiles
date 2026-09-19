@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== Ensuring we are inside a worktree =="
+git rev-parse --show-toplevel >/dev/null
+
+echo "== Residual ref inventory (heads/remotes/tags) =="
+git show-ref
+
+echo "== Residual ref inventory (refs/original/* backups, if any) =="
+git for-each-ref 'refs/original/' --format='%(refname) %(objectname)' || true
+
+echo "== Expiring unreachable reflog entries =="
+git reflog expire --expire-unreachable=now --all
+
+echo "== Garbage-collecting unreachable objects =="
+git gc --prune=now --aggressive
+
+echo "== Verifying object database health =="
+git fsck --no-reflogs --full
+
+echo "== Fetching rewritten history from origin (pruning removed refs) =="
+git fetch origin --prune
+
+echo "== Resetting each local branch to its remote counterpart (if present) =="
+while read -r branch; do
+  if git show-ref --verify --quiet "refs/remotes/origin/${branch}";
+then
+    echo "---- Resetting ${branch} to origin/${branch}"
+    git checkout "${branch}"
+    git reset --hard "origin/${branch}"
+  else
+    echo "---- Skipping ${branch}; no origin/${branch} ref found (delete or update manually)"
+  fi
+done < <(git for-each-ref --format='%(refname:short)' refs/heads)
+
+echo "== Final residual ref snapshot (verify manually) =="
+git show-ref
+git for-each-ref 'refs/original/' --format='%(refname) %(objectname)' || true
+
+echo "All done. Review the listings above; delete any remaining refs/original/* if you agree with the rewrite."

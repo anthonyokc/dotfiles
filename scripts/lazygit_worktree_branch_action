@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action="${1:?Missing action}"
+branch="${2:?Missing local branch name}"
+remote="${3:-}"
+remote_branch="${4:-$branch}"
+repo_dir="$(git rev-parse --show-toplevel)"
+
+require_local_branch() {
+  git show-ref --verify --quiet "refs/heads/$branch" || {
+    printf 'Local branch does not exist: %s\n' "$branch" >&2
+    exit 1
+  }
+}
+
+require_remote_branch() {
+  [[ -n "$remote" && -n "$remote_branch" ]] || {
+    printf 'The selected branch has no remote branch.\n' >&2
+    exit 1
+  }
+}
+
+reject_current_branch() {
+  if [[ "$(git branch --show-current)" == "$branch" ]]; then
+    printf 'Cannot remove the worktree that runs lazygit. Switch worktrees first.\n' >&2
+    exit 1
+  fi
+}
+
+delete_remote_branch() {
+  require_remote_branch
+  git push "$remote" --delete "$remote_branch"
+}
+
+remove_worktree() {
+  local keep_branch="${1:-false}"
+  require_local_branch
+  reject_current_branch
+  if [[ "$keep_branch" == "true" ]]; then
+    wt -C "$repo_dir" --yes remove --foreground --no-delete-branch "$branch"
+  else
+    wt -C "$repo_dir" --yes remove --foreground --force-delete "$branch"
+  fi
+}
+
+case "$action" in
+  create-local) wt -C "$repo_dir" switch --no-cd "$branch" ;;
+  create-remote) require_remote_branch; wt -C "$repo_dir" switch --no-cd "$remote/$remote_branch" ;;
+  delete-local) require_local_branch; git branch -D -- "$branch" ;;
+  delete-remote) delete_remote_branch ;;
+  delete-both) delete_remote_branch; require_local_branch; git branch -D -- "$branch" ;;
+  delete-local-worktree) remove_worktree false ;;
+  delete-remote-worktree) delete_remote_branch; remove_worktree true ;;
+  delete-all-worktree) delete_remote_branch; remove_worktree false ;;
+  *) printf 'Unknown action: %s\n' "$action" >&2; exit 2 ;;
+esac

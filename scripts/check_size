@@ -1,0 +1,129 @@
+#!/bin/bash
+
+show_usage() {
+    echo "Usage: $0 [--progress] [--interval seconds] <directory_path> <number_of_GB>"
+    echo "  --interval seconds  Polling interval for --progress (default: 5)"
+}
+
+is_positive_number() {
+    awk -v value="$1" 'BEGIN {
+        exit (value ~ /^([0-9]+([.][0-9]*)?|[.][0-9]+)$/ && value > 0) ? 0 : 1
+    }'
+}
+
+PROGRESS=0
+POLL_INTERVAL=5
+POSITIONAL=()
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --progress)
+            PROGRESS=1
+            shift
+            ;;
+        --interval)
+            if [ -z "$2" ]; then
+                echo "Error: --interval requires a value."
+                show_usage
+                exit 1
+            fi
+            POLL_INTERVAL="$2"
+            shift 2
+            ;;
+        -h|--help)
+            show_usage
+            exit 0
+            ;;
+        --)
+            shift
+            while [ "$#" -gt 0 ]; do
+                POSITIONAL+=("$1")
+                shift
+            done
+            ;;
+        -* )
+            echo "Error: Unknown option: $1"
+            show_usage
+            exit 1
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# Check if both positional arguments are provided
+if [ "${#POSITIONAL[@]}" -ne 2 ]; then
+    show_usage
+    exit 1
+fi
+
+TARGET_DIR="${POSITIONAL[0]}"
+GB_LIMIT="${POSITIONAL[1]}"
+
+# Safety check: Ensure the target limit is a valid number greater than 0
+if ! is_positive_number "$GB_LIMIT"; then
+    echo "Error: GB limit must be greater than zero."
+    exit 1
+fi
+
+if ! is_positive_number "$POLL_INTERVAL"; then
+    echo "Error: Poll interval must be greater than zero."
+    exit 1
+fi
+
+# Convert the input limit into raw bytes (Decimal: 1 GB = 1,000,000,000 bytes)
+TOTAL_BYTES=$(awk -v gb="$GB_LIMIT" 'BEGIN {print gb * 1000000000}')
+
+print_size() {
+    # Fetch directory size and format the fraction and percentage safely
+    gdu -ns --no-prefix "$TARGET_DIR" | awk -v total_bytes="$TOTAL_BYTES" -v limit_gb="$GB_LIMIT" '
+    {
+        if (total_bytes == 0) {
+            print "0.00GB / " limit_gb "GB (0.00%)"
+            exit
+        }
+        current_gb = $1 / 1000000000
+        percentage = ($1 / total_bytes) * 100
+        printf "%.2fGB / %.2fGB (%.2f%%)\n", current_gb, limit_gb, percentage
+    }'
+}
+
+print_progress() {
+    local width=30
+
+    gdu -ns --no-prefix "$TARGET_DIR" | awk \
+        -v total_bytes="$TOTAL_BYTES" \
+        -v limit_gb="$GB_LIMIT" \
+        -v width="$width" '
+    {
+        current_gb = $1 / 1000000000
+        percentage = total_bytes == 0 ? 0 : ($1 / total_bytes) * 100
+        capped_percentage = percentage > 100 ? 100 : percentage
+        filled = int((capped_percentage / 100) * width)
+
+        bar = ""
+        for (i = 0; i < filled; i++) {
+            bar = bar "#"
+        }
+        for (i = filled; i < width; i++) {
+            bar = bar "-"
+        }
+
+        printf "\r[%s] %.2f%% %.2fGB / %.2fGB", bar, percentage, current_gb, limit_gb
+        fflush()
+    }'
+}
+
+if [ "$PROGRESS" -eq 0 ]; then
+    print_size
+    exit 0
+fi
+
+trap 'printf "\n"; exit' INT TERM
+
+while true; do
+    print_progress
+    sleep "$POLL_INTERVAL"
+done

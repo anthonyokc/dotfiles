@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# create_new_git_tag_with_release_notes: create a signed version tag with notes
+#
+# Usage:
+#   create_new_git_tag_with_release_notes [major|minor|patch] [target] [--push]
+#
+# Options:
+#   --push   push the new tag to origin after creating it
+
+set -euo pipefail
+
+show_help() {
+  cat <<EOF
+Usage: $0 [major|minor|patch] [target] [--push]
+
+Create a signed version tag with release notes.
+
+Options:
+  --push   push the new tag to origin after creating it
+  --help   show this help text
+EOF
+}
+
+push_tag=false
+bump="patch"   # major | minor | patch
+target="HEAD"  # commit to tag (default HEAD)
+
+for arg in "$@"; do
+  case "$arg" in
+    --help|-h)
+      show_help
+      exit 0
+      ;;
+    --push)
+      push_tag=true
+      ;;
+    major|minor|patch)
+      bump="$arg"
+      ;;
+    *)
+      target="$arg"
+      ;;
+  esac
+done
+
+# 1. Last tag (or v0.0.0 if none)
+last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+last_base="${last_tag#v}"
+IFS='.' read -r major minor patch <<< "$last_base"
+
+# 2. Calculate next version
+case "$bump" in
+  major)
+    major=$((major + 1)); minor=0; patch=0 ;;
+  minor)
+    minor=$((minor + 1)); patch=0 ;;
+  patch)
+    patch=$((patch + 1)) ;;
+  *)
+    show_help >&2
+    exit 1 ;;
+  esac
+
+new_tag="v${major}.${minor}.${patch}"
+
+# Verify target commit exists
+git rev-parse "$target" >/dev/null 2>&1 || {
+  echo "Target commit '$target' not found" >&2
+  exit 1
+}
+
+# 3. Build changelog from commits since last tag, up to target
+if git rev-parse "$last_tag" >/dev/null 2>&1; then
+  if git merge-base --is-ancestor "$last_tag" "$target"; then
+    range="${last_tag}..${target}"
+  else
+    echo "Warning: $last_tag is not an ancestor of $target; using only $target in changelog." >&2
+    range="$target"
+  fi
+else
+  range="$target"
+fi
+
+
+notes=$(git log --pretty=format:"- %s (%h)" "$range")
+
+if [ -z "$notes" ]; then
+  echo "No new commits since $last_tag. Not tagging." >&2
+  exit 1
+fi
+
+# 4. Create signed tag with release notes so GitHub can verify it
+git tag -s "$new_tag" "$target" -m "$new_tag"$'\n\n'"$notes"
+
+# 5. Push the new tag when requested
+if [ "$push_tag" = true ]; then
+  git push origin "$new_tag"
+fi
+
+# 6. Output the new tag and note
+echo "Created $new_tag:"
+echo "$notes"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ${1:-} == "--exa" ]]; then
+  shift
+  export OPENCODE_ENABLE_EXA=1
+  export OPENCODE_CONFIG_CONTENT='{"tools":{"notion_*":true},"permission":{"websearch":"ask","webfetch":"ask"}}'
+else
+  unset OPENCODE_ENABLE_EXA
+  export OPENCODE_CONFIG_CONTENT='{"tools":{"notion_*":true}}'
+fi
+
+exec opencode "$@"

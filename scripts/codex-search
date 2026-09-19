@@ -1,0 +1,500 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["rapidfuzz>=3.9,<4"]
+# ///
+"""Search a local full-text index of Codex and ChatGPT conversations."""
+
+import argparse
+from datetime import datetime, timedelta
+import hashlib
+import json
+from pathlib import Path
+import re
+import sqlite3
+import sys
+import zipfile
+
+from rapidfuzz import fuzz, utils
+
+
+DEFAULT_CODEX_HOME = "/mnt/c/Users/AnthonyFlores/.codex"
+DEFAULT_INDEX = "/mnt/c/Users/AnthonyFlores/Documents/ChatGPT Exports/index/search.sqlite3"
+
+
+def wsl_path(value):
+    value = str(value)
+    value = value.replace("\\", "/")
+    if value.startswith("//?/"):
+        value = value[4:]
+    if re.match(r"^[A-Za-z]:/", value):
+        value = f"/mnt/{value[0].lower()}/{value[3:]}"
+    return str(Path(value).expanduser())
+
+
+def since_timestamp(value):
+    try:
+        if re.fullmatch(r"\d+d", value):
+            return int((datetime.now().astimezone() - timedelta(days=int(value[:-1]))).timestamp())
+        return int(datetime.fromisoformat(value).timestamp())
+    except (ValueError, OverflowError):
+        raise argparse.ArgumentTypeError("use a date such as 2026-09-01 or a duration such as 30d")
+
+
+def open_index(path):
+    path = Path(wsl_path(path)).resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    db = sqlite3.connect(path)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=NORMAL")
+    db.execute("PRAGMA temp_store=MEMORY")
+    db.execute("PRAGMA cache_size=-131072")
+    db.execute("PRAGMA foreign_keys=ON")
+    db.executescript("""
+        CREATE TABLE IF NOT EXISTS conversations (
+            source TEXT NOT NULL,
+            id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            cwd TEXT,
+            created_at REAL,
+            updated_at REAL NOT NULL,
+            origin_path TEXT NOT NULL,
+            content_hash TEXT NOT NULL,
+            PRIMARY KEY (source, id)
+        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+            title,
+            content,
+            source UNINDEXED,
+            conversation_id UNINDEXED,
+            role UNINDEXED,
+            locator UNINDEXED,
+            tokenize='unicode61 remove_diacritics 2'
+        );
+    """)
+    return db
+
+
+def rollout_messages(path, user_only=False, warnings=None):
+    warnings = warnings if warnings is not None else {"malformed lines": 0}
+    with path.open(encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                warnings["malformed lines"] = warnings.get("malformed lines", 0) + 1
+                continue
+            if not isinstance(record, dict):
+                continue
+            payload = record.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            if record.get("type") != "response_item" or payload.get("type") != "message":
+                continue
+            role = payload.get("role")
+            if role not in ({"user"} if user_only else {"user", "assistant"}):
+                continue
+            content = payload.get("content", [])
+            if not isinstance(content, list):
+                continue
+            text = "\n".join(
+                part["text"] for part in content
+                if isinstance(part, dict)
+                and part.get("type") in {"input_text", "output_text", "text"}
+                and isinstance(part.get("text"), str)
+            )
+            if text.strip():
+                yield line_number, role, text
+
+
+# Backward-compatible name used by earlier callers and tests.
+messages = rollout_messages
+
+
+def digest_messages(items):
+    digest = hashlib.sha256()
+    for locator, role, text in items:
+        digest.update(str(locator).encode())
+        digest.update(b"\0")
+        digest.update(role.encode())
+        digest.update(b"\0")
+        digest.update(text.encode())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def replace_conversation(db, metadata, items):
+    source = metadata["source"]
+    conversation_id = metadata["id"]
+    content_hash = digest_messages(items)
+    current = db.execute(
+        "SELECT content_hash, title, updated_at FROM conversations WHERE source=? AND id=?",
+        (source, conversation_id),
+    ).fetchone()
+    if current and current["content_hash"] == content_hash \
+            and current["title"] == metadata["title"] \
+            and current["updated_at"] == metadata["updated_at"]:
+        return False
+    db.execute(
+        "DELETE FROM messages_fts WHERE source=? AND conversation_id=?",
+        (source, conversation_id),
+    )
+    db.execute("""
+        INSERT INTO conversations
+            (source, id, title, cwd, created_at, updated_at, origin_path, content_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(source, id) DO UPDATE SET
+            title=excluded.title,
+            cwd=excluded.cwd,
+            created_at=excluded.created_at,
+            updated_at=excluded.updated_at,
+            origin_path=excluded.origin_path,
+            content_hash=excluded.content_hash
+    """, (
+        source, conversation_id, metadata["title"], metadata.get("cwd"),
+        metadata.get("created_at"), metadata["updated_at"],
+        metadata["origin_path"], content_hash,
+    ))
+    db.executemany("""
+        INSERT INTO messages_fts
+            (title, content, source, conversation_id, role, locator)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, [
+        (metadata["title"], text, source, conversation_id, role, str(locator))
+        for locator, role, text in items
+    ])
+    return True
+
+
+def sync_codex(db, codex_home=DEFAULT_CODEX_HOME):
+    home = Path(wsl_path(codex_home)).resolve()
+    state_path = home / "state_5.sqlite"
+    warnings = {"unreadable transcripts": 0, "malformed lines": 0}
+    if not state_path.is_file():
+        return {"indexed": 0, "unchanged": 0, "removed": 0, **warnings, "missing database": 1}
+    with sqlite3.connect(state_path.as_uri() + "?mode=ro", uri=True) as source_db:
+        source_db.row_factory = sqlite3.Row
+        rows = source_db.execute(
+            "SELECT id, title, cwd, updated_at, rollout_path FROM threads"
+        ).fetchall()
+    existing = {
+        row["id"]: row for row in db.execute(
+            "SELECT id, updated_at, origin_path FROM conversations WHERE source='codex'"
+        )
+    }
+    live_ids = set()
+    indexed = unchanged = 0
+    for row in rows:
+        live_ids.add(row["id"])
+        path = Path(wsl_path(row["rollout_path"]))
+        if not path.is_absolute():
+            path = home / path
+        if not path.is_file():
+            warnings["unreadable transcripts"] += 1
+            continue
+        current = existing.get(row["id"])
+        if current and current["updated_at"] == row["updated_at"] \
+                and current["origin_path"] == str(path):
+            unchanged += 1
+            continue
+        try:
+            items = list(rollout_messages(path, warnings=warnings))
+        except (OSError, UnicodeError):
+            warnings["unreadable transcripts"] += 1
+            continue
+        changed = replace_conversation(db, {
+            "source": "codex",
+            "id": row["id"],
+            "title": " ".join((row["title"] or "Untitled").split()),
+            "cwd": wsl_path(row["cwd"] or ""),
+            "created_at": None,
+            "updated_at": row["updated_at"],
+            "origin_path": str(path),
+        }, items)
+        indexed += int(changed)
+        unchanged += int(not changed)
+    removed_ids = set(existing) - live_ids
+    for conversation_id in removed_ids:
+        db.execute(
+            "DELETE FROM messages_fts WHERE source='codex' AND conversation_id=?",
+            (conversation_id,),
+        )
+        db.execute(
+            "DELETE FROM conversations WHERE source='codex' AND id=?",
+            (conversation_id,),
+        )
+    db.commit()
+    return {"indexed": indexed, "unchanged": unchanged, "removed": len(removed_ids), **warnings}
+
+
+def part_text(part):
+    if isinstance(part, str):
+        return part
+    if not isinstance(part, dict):
+        return ""
+    for key in ("text", "content", "caption"):
+        value = part.get(key)
+        if isinstance(value, str):
+            return value
+    return ""
+
+
+def official_messages(conversation):
+    found = []
+    seen = set()
+    mapping = conversation.get("mapping") or {}
+    for node_id, node in mapping.items():
+        if not isinstance(node, dict):
+            continue
+        message = node.get("message")
+        if not isinstance(message, dict):
+            continue
+        message_id = message.get("id") or node_id
+        if message_id in seen:
+            continue
+        seen.add(message_id)
+        role = (message.get("author") or {}).get("role")
+        if role not in {"user", "assistant"}:
+            continue
+        content = message.get("content") or {}
+        parts = content.get("parts") or []
+        text = "\n".join(filter(None, (part_text(part) for part in parts))).strip()
+        if not text and isinstance(content.get("text"), str):
+            text = content["text"].strip()
+        if text:
+            found.append((message.get("create_time") or 0, str(message_id), role, text))
+    found.sort(key=lambda item: (item[0], item[1]))
+    return [(message_id, role, text) for _, message_id, role, text in found]
+
+
+def universal_messages(conversation):
+    found = []
+    for index, message in enumerate(conversation.get("messages") or []):
+        if not isinstance(message, dict):
+            continue
+        role = message.get("role")
+        content = message.get("content")
+        if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
+            found.append((message.get("id") or index, role, content))
+    return found
+
+
+def import_conversations(db, conversations, origin_path, format_name):
+    indexed = unchanged = skipped = 0
+    for conversation in conversations:
+        if not isinstance(conversation, dict):
+            skipped += 1
+            continue
+        conversation_id = conversation.get("id") or conversation.get("conversation_id")
+        if not conversation_id:
+            skipped += 1
+            continue
+        items = official_messages(conversation) if format_name == "official" \
+            else universal_messages(conversation)
+        updated_at = conversation.get("update_time") or conversation.get("updated_at") \
+            or conversation.get("create_time") or conversation.get("created_at") or 0
+        created_at = conversation.get("create_time") or conversation.get("created_at")
+        changed = replace_conversation(db, {
+            "source": "chatgpt",
+            "id": str(conversation_id),
+            "title": " ".join(str(conversation.get("title") or "Untitled").split()),
+            "cwd": None,
+            "created_at": created_at,
+            "updated_at": updated_at,
+            "origin_path": origin_path,
+        }, items)
+        indexed += int(changed)
+        unchanged += int(not changed)
+    return indexed, unchanged, skipped
+
+
+def import_chatgpt_archive(db, archive_path):
+    archive_path = Path(wsl_path(archive_path)).resolve()
+    totals = {"indexed": 0, "unchanged": 0, "skipped": 0, "shards": 0}
+    with zipfile.ZipFile(archive_path) as archive:
+        names = archive.namelist()
+        official = sorted(
+            name for name in names
+            if re.fullmatch(r"conversations(?:-\d+)?\.json", name)
+        )
+        universal = [name for name in names if name == "universal/conversations.json"]
+        selected = [(name, "official") for name in official] \
+            or [(name, "universal") for name in universal]
+        if not selected:
+            raise ValueError("archive has no ChatGPT conversation JSON")
+        for name, format_name in selected:
+            with archive.open(name) as stream:
+                payload = json.load(stream)
+            conversations = payload if format_name == "official" else payload.get("conversations", [])
+            indexed, unchanged, skipped = import_conversations(
+                db, conversations, f"{archive_path}!{name}", format_name
+            )
+            totals["indexed"] += indexed
+            totals["unchanged"] += unchanged
+            totals["skipped"] += skipped
+            totals["shards"] += 1
+            db.commit()
+    return totals
+
+
+def fts_query(value):
+    terms = re.findall(r"[\w'-]+", value, flags=re.UNICODE)
+    if not terms:
+        raise ValueError("query must contain letters or numbers")
+    return " AND ".join(f'"{term}"' for term in terms)
+
+
+def best_excerpt(query, text):
+    normalized_query = utils.default_process(query)
+    stop_words = set("a an the when should would could be been is are was were to of in on for and or it do does how what i we you".split())
+    query_words = set(normalized_query.split()) - stop_words or set(normalized_query.split())
+    words = text.split()
+    width = max(40, len(normalized_query.split()) * 2)
+    best = None
+    for start in range(0, max(1, len(words)), max(1, width // 2)):
+        excerpt = " ".join(words[start:start + width])
+        normalized = utils.default_process(excerpt)
+        candidates = set(normalized.split())
+        coverage = sum(
+            max((fuzz.ratio(word, candidate) for candidate in candidates), default=0)
+            for word in query_words
+        ) / len(query_words)
+        score = 0.7 * coverage + 0.3 * fuzz.WRatio(normalized_query, normalized)
+        if best is None or score > best[0]:
+            best = (score, excerpt)
+    return best or (0, "")
+
+
+def search_index(db, query, source=None, cwd=None, since=None, user_only=False,
+                 limit=20, min_score=60):
+    clauses = ["messages_fts MATCH ?"]
+    parameters = [fts_query(query)]
+    if source:
+        clauses.append("f.source=?")
+        parameters.append(source)
+    if cwd:
+        cwd = wsl_path(cwd).rstrip("/")
+        clauses.append("(c.cwd=? OR c.cwd LIKE ?)")
+        parameters.extend([cwd, cwd + "/%"])
+    if since is not None:
+        clauses.append("c.updated_at>=?")
+        parameters.append(since)
+    if user_only:
+        clauses.append("f.role='user'")
+    rows = db.execute(f"""
+        SELECT f.source, f.conversation_id AS id, c.title, c.cwd, c.updated_at,
+               c.origin_path, f.role, f.locator, f.content, bm25(messages_fts, 5.0, 1.0) AS rank
+        FROM messages_fts AS f
+        JOIN conversations AS c
+          ON c.source=f.source AND c.id=f.conversation_id
+        WHERE {' AND '.join(clauses)}
+        ORDER BY rank
+        LIMIT 1000
+    """, parameters).fetchall()
+    best_by_conversation = {}
+    for row in rows:
+        score, excerpt = best_excerpt(query, row["content"])
+        if score < min_score:
+            continue
+        result = dict(row)
+        result.pop("content")
+        result.pop("rank")
+        result.update({
+            "score": score,
+            "excerpt": excerpt,
+            "line": int(row["locator"]) if row["source"] == "codex" and str(row["locator"]).isdigit() else None,
+            "rollout_path": row["origin_path"] if row["source"] == "codex" else None,
+        })
+        key = (row["source"], row["id"])
+        current = best_by_conversation.get(key)
+        if current is None or result["score"] > current["score"]:
+            best_by_conversation[key] = result
+    return sorted(
+        best_by_conversation.values(),
+        key=lambda item: (-item["score"], -item["updated_at"], item["source"], item["id"]),
+    )[:limit]
+
+
+def search_main(arguments=None):
+    parser = argparse.ArgumentParser(description=__doc__, epilog=(
+        "The index refreshes changed Codex threads before each search. "
+        "Run 'codex-search import-chatgpt EXPORT.zip' to add an official or AI Exporter archive."
+    ))
+    parser.add_argument("query")
+    parser.add_argument("--codex-home", default=DEFAULT_CODEX_HOME)
+    parser.add_argument("--index", default=DEFAULT_INDEX)
+    parser.add_argument("--source", choices=["codex", "chatgpt"])
+    parser.add_argument("--cwd", help="Codex project directory, including descendants")
+    parser.add_argument("--since", type=since_timestamp, help="updated since YYYY-MM-DD or Nd")
+    parser.add_argument("--user-only", action="store_true")
+    parser.add_argument("--no-sync", action="store_true", help="skip the automatic Codex index refresh")
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--min-score", type=float, default=60)
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(arguments)
+    if args.limit < 1 or not 0 <= args.min_score <= 100:
+        parser.error("--limit must be positive and --min-score must be between 0 and 100")
+    try:
+        with open_index(args.index) as db:
+            stats = None if args.no_sync else sync_codex(db, args.codex_home)
+            results = search_index(
+                db, args.query, args.source, args.cwd, args.since,
+                args.user_only, args.limit, args.min_score,
+            )
+    except (sqlite3.Error, OSError, ValueError) as error:
+        parser.exit(1, f"codex-search: {error}\n")
+    if args.json:
+        print(json.dumps(results, ensure_ascii=False, indent=2))
+    elif not results:
+        print("No matching conversations.")
+    else:
+        for item in results:
+            date = datetime.fromtimestamp(item["updated_at"]).strftime("%Y-%m-%d")
+            print(f"{item['score']:5.1f}  {date}  [{item['source']}]  {item['title']}")
+            print(f"  {item['id']}  {item['cwd'] or ''}")
+            print(f"  [{item['role']}] {item['excerpt']}")
+            print(f"  {item['origin_path']}#{item['locator']}\n")
+    if stats:
+        for label in ("unreadable transcripts", "malformed lines"):
+            if stats.get(label):
+                print(f"codex-search: skipped {stats[label]} {label}", file=sys.stderr)
+    return results
+
+
+def import_main(arguments=None):
+    parser = argparse.ArgumentParser(description="Import ChatGPT exports into the search index.")
+    parser.add_argument("archives", nargs="+")
+    parser.add_argument("--index", default=DEFAULT_INDEX)
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args(arguments)
+    totals = {"indexed": 0, "unchanged": 0, "skipped": 0, "shards": 0, "archives": 0}
+    try:
+        with open_index(args.index) as db:
+            for archive in args.archives:
+                stats = import_chatgpt_archive(db, archive)
+                for key in ("indexed", "unchanged", "skipped", "shards"):
+                    totals[key] += stats[key]
+                totals["archives"] += 1
+    except (sqlite3.Error, OSError, ValueError, zipfile.BadZipFile, json.JSONDecodeError) as error:
+        parser.exit(1, f"codex-search: {error}\n")
+    if args.json:
+        print(json.dumps(totals, indent=2))
+    else:
+        print(
+            f"Imported {totals['indexed']} changed conversations from "
+            f"{totals['shards']} shards; {totals['unchanged']} unchanged, "
+            f"{totals['skipped']} skipped."
+        )
+    return totals
+
+
+def main(arguments=None):
+    arguments = list(sys.argv[1:] if arguments is None else arguments)
+    if arguments and arguments[0] == "import-chatgpt":
+        return import_main(arguments[1:])
+    return search_main(arguments)
+
+
+if __name__ == "__main__":
+    main()

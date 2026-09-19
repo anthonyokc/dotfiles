@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -u
+
+# Input variables
+PROJECT_NAME="My Project"
+PROJECT_ID="my-unique-project-id-123"
+
+valid=true
+
+# 1. Validate Project Name
+if [[ ${#PROJECT_NAME} -lt 4 || ${#PROJECT_NAME} -gt 30 ]]; then
+  echo "❌ INVALID NAME: Must be between 4 and 30 characters."
+  valid=false
+else
+  echo "✅ Project name length is valid."
+fi
+
+# 2. Validate Project ID Format
+if [[ ! "$PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]; then
+  echo "❌ INVALID ID: Must be 6-30 chars, start with a lowercase letter, and contain only lowercase letters, numbers, or hyphens."
+  echo "   It must also end with a lowercase letter or number."
+  valid=false
+else
+  echo "✅ Project ID format is valid."
+fi
+
+# 3. Best-effort check for Project ID existence
+if [[ "$valid" == true ]]; then
+  describe_output="$(gcloud projects describe "$PROJECT_ID" 2>&1)"
+  describe_status=$?
+
+  if [[ $describe_status -eq 0 ]]; then
+    echo "❌ INVALID ID: This project ID already exists globally."
+    valid=false
+  elif grep -qiE "not found|NOT_FOUND" <<< "$describe_output"; then
+    echo "✅ Project ID was not found and appears available."
+  elif grep -qiE "permission|PERMISSION_DENIED" <<< "$describe_output"; then
+    echo "⚠️ Could not confirm availability: Google returned permission denied."
+    echo "   This may mean the ID exists but you lack access, or it may not exist."
+    echo "   The final check happens when creating the project."
+  else
+    echo "⚠️ Could not confirm project ID availability."
+    echo "$describe_output"
+  fi
+fi
+
+if [[ "$valid" == true ]]; then
+  echo "✅ All checks passed."
+else
+  echo "❌ One or more checks failed."
+  exit 1
+fi

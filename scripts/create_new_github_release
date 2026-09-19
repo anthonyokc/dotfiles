@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+# create_new_github_release: publish a GitHub release from a tag
+#
+# Description:
+#   Validates the environment, confirms the tag is annotated, and then
+#   delegates to the GitHub CLI to create a release that reuses the tag's
+#   annotation as release notes.
+#
+# Requirements:
+#   - A local git repository with the target tag already created.
+#   - The GitHub CLI (`gh`) configured with sufficient permissions.
+#
+# Usage:
+#   scripts/create_new_github_release <tag> [owner/repo]
+#   - <tag>: existing annotated tag in the current repository.
+#   - [owner/repo]: optional override if not running from the repo root.
+#
+set -euo pipefail
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "The GitHub CLI (gh) is not installed or not on PATH." >&2
+  exit 1
+fi
+
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  echo "This command must be run inside a git repository." >&2
+  exit 1
+fi
+
+if [[ $# -lt 1 || $# -gt 2 ]]; then
+  echo "Usage: $0 <tag> [owner/repo]" >&2
+  exit 1
+fi
+
+tag="$1"
+repo="${2:-}"
+
+gh_args=()
+if [[ -n "$repo" ]]; then
+  gh_args+=(--repo "$repo")
+fi
+
+# Ensure the tag exists and is annotated so that notes are available.
+if ! git rev-parse "${tag}^{tag}" >/dev/null 2>&1; then
+  if git rev-parse "$tag" >/dev/null 2>&1; then
+    echo "Tag '$tag' exists but is lightweight. Please create an annotated tag." >&2
+  else
+    echo "Tag '$tag' was not found in this repository." >&2
+  fi
+  exit 1
+fi
+
+mapfile -t release_tags < <(
+  gh "${gh_args[@]}" release list --exclude-drafts --json tagName --limit 1000 --jq '.[].tagName'
+)
+
+repo_url=$(gh "${gh_args[@]}" repo view --json url --jq '.url')
+
+declare -A released_tag_lookup=()
+for release_tag in "${release_tags[@]}"; do
+  released_tag_lookup["$release_tag"]=1
+done
+
+mapfile -t merged_annotated_tags < <(
+  git for-each-ref --merged="$tag" --sort=creatordate --format='%(refname:short) %(objecttype)' refs/tags |
+    while read -r candidate_tag object_type; do
+      [[ "$object_type" == "tag" ]] || continue
+      printf '%s\n' "$candidate_tag"
+    done
+)
+
+last_release_tag=""
+for candidate_tag in "${merged_annotated_tags[@]}"; do
+  [[ "$candidate_tag" == "$tag" ]] && break
+  if [[ -n "${released_tag_lookup[$candidate_tag]:-}" ]]; then
+    last_release_tag="$candidate_tag"
+  fi
+done
+
+notes_file=$(mktemp)
+trap 'rm -f "$notes_file"' EXIT
+
+included_tags=()
+collecting=false
+for candidate_tag in "${merged_annotated_tags[@]}"; do
+  if [[ -n "$last_release_tag" && "$candidate_tag" == "$last_release_tag" ]]; then
+    collecting=true
+    continue
+  fi
+
+  if [[ -z "$last_release_tag" ]]; then
+    collecting=true
+  fi
+
+  [[ "$collecting" == true ]] || continue
+  included_tags+=("$candidate_tag")
+
+  [[ "$candidate_tag" == "$tag" ]] && break
+done
+
+for ((i=${#included_tags[@]} - 1; i >= 0; i--)); do
+  candidate_tag="${included_tags[$i]}"
+  candidate_index=-1
+
+  for idx in "${!merged_annotated_tags[@]}"; do
+    if [[ "${merged_annotated_tags[$idx]}" == "$candidate_tag" ]]; then
+      candidate_index=$idx
+      break
+    fi
+  done
+
+  if (( candidate_index > 0 )); then
+    range="${merged_annotated_tags[$((candidate_index - 1))]}..${candidate_tag}"
+  else
+    range="$candidate_tag"
+  fi
+
+  tag_notes=$(git log --pretty=format:"- %s ([%h]($repo_url/commit/%H))" "$range")
+  [[ -n "$tag_notes" ]] || continue
+
+  if [[ -s "$notes_file" ]]; then
+    printf '\n\n' >> "$notes_file"
+  fi
+
+  printf '[%s](%s/tree/%s)\n\n' "$candidate_tag" "$repo_url" "$candidate_tag" >> "$notes_file"
+  printf '%s\n' "$tag_notes" >> "$notes_file"
+done
+
+if [[ ! -s "$notes_file" ]]; then
+  echo "No annotated tag notes were found to build release notes for '$tag'." >&2
+  exit 1
+fi
+
+args=(release create "$tag" --verify-tag --notes-file "$notes_file" --title "Release $tag")
+if [[ -n "$repo" ]]; then
+  args+=(--repo "$repo")
+fi
+
+echo "Creating GitHub release for tag $tag..."
+if gh "${args[@]}"; then
+  echo "Release $tag created successfully."
+else
+  echo "Failed to create release for $tag." >&2
+  exit 1
+fi

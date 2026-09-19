@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+
+serve_dir() {
+  local dir="."
+  local port="0"
+  local mode="fg"
+  local clear="false"
+  local path="/"
+  local https_port="443"
+  local ts
+  ts="$(command -v tailscale)" || {
+    echo "tailscale not found" >&2
+    return 1
+  }
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      -h|--help)
+        cat <<'EOF'
+serve_dir - serve a local directory through Tailscale Serve
+
+Usage:
+  serve_dir [DIR] [PORT] [--fg|--bg] [--path PATH] [--https PORT] [--clear]
+
+Examples:
+  serve_dir docs
+  serve_dir docs 1313
+  serve_dir docs --bg
+  serve_dir docs --path /docs
+  serve_dir docs 1313 --bg --path /docs
+  serve_dir docs --https 8443
+  serve_dir docs 1313 --https 8443
+  serve_dir docs --clear
+
+Options:
+  DIR              Directory to serve. Default: .
+  PORT             Local port. Default: 0, which auto-picks a free port.
+
+  --fg             Run until Ctrl-C. Default.
+  --bg             Leave the local Python server running in the background.
+
+  --path PATH      Tailscale Serve path to mount this directory.
+                   Default: /
+                   Use /docs or similar to avoid replacing existing routes.
+
+  --https PORT     Tailscale HTTPS port to publish. Default: 443.
+                   This is separate from PORT, which is the local Python port.
+
+  --clear          Clear existing Tailscale Serve config first.
+                   Without this, existing routes are preserved unless you reuse
+                   the same --path.
+
+  -h, --help       Show this help.
+
+Notes:
+  This uses python3 -m http.server bound to 127.0.0.1, then proxies it with:
+    sudo tailscale serve --bg --https HTTPS_PORT --set-path PATH http://127.0.0.1:PORT
+
+Stop background server:
+  kill <PID>
+
+Clear Tailscale Serve later:
+  sudo tailscale serve --https HTTPS_PORT --set-path PATH off
+EOF
+        return 0
+        ;;
+      --fg)
+        mode="fg"
+        shift
+        ;;
+      --bg)
+        mode="bg"
+        shift
+        ;;
+      --clear)
+        clear="true"
+        shift
+        ;;
+      --path)
+        if [ "$#" -lt 2 ]; then
+          echo "Missing value for --path" >&2
+          return 1
+        fi
+        path="$2"
+        shift 2
+        ;;
+      --path=*)
+        path="${1#--path=}"
+        shift
+        ;;
+      --https)
+        if [ "$#" -lt 2 ]; then
+          echo "Missing value for --https" >&2
+          return 1
+        fi
+        https_port="$2"
+        shift 2
+        ;;
+      --https=*)
+        https_port="${1#--https=}"
+        shift
+        ;;
+      --*)
+        echo "Unknown option: $1" >&2
+        return 1
+        ;;
+      *[!0-9]*)
+        if [ -d "$1" ]; then
+          dir="$1"
+        else
+          echo "Unknown option or directory not found: $1" >&2
+          return 1
+        fi
+        shift
+        ;;
+      *[0-9])
+        port="$1"
+        shift
+        ;;
+      *)
+        echo "Invalid empty argument" >&2
+        return 1
+        ;;
+    esac
+  done
+
+  if [ ! -d "$dir" ]; then
+    echo "Directory not found: $dir" >&2
+    return 1
+  fi
+
+  case "$mode" in
+    fg|bg) ;;
+    *)
+      echo "Invalid mode: $mode. Use --fg or --bg." >&2
+      return 1
+      ;;
+  esac
+
+  case "$path" in
+    /*) ;;
+    *)
+      echo "Invalid path: $path. Path must start with /." >&2
+      return 1
+      ;;
+  esac
+
+  if [ "$port" = "0" ]; then
+    port="$(python3 - <<'PY'
+import socket
+s = socket.socket()
+s.bind(("127.0.0.1", 0))
+print(s.getsockname()[1])
+s.close()
+PY
+)"
+  fi
+
+  case "$port" in
+    *[!0-9]*|'')
+      echo "Invalid port: $port" >&2
+      return 1
+      ;;
+  esac
+
+  case "$https_port" in
+    *[!0-9]*|'')
+      echo "Invalid HTTPS port: $https_port" >&2
+      return 1
+      ;;
+  esac
+
+  echo "sudo is needed to configure Tailscale Serve for HTTPS $https_port."
+  if ! sudo -v -p "[sudo] password for %u (for Tailscale Serve): "; then
+    return 1
+  fi
+
+  if [ "$clear" = "true" ]; then
+    sudo "$ts" serve reset >/dev/null 2>&1 || true
+  fi
+
+  echo "Starting local Python HTTP server in the background."
+  echo "If your shell prints a line like '[2] 2148906', that is the shell job number and process ID for this local server."
+  (cd "$dir" && python3 -m http.server "$port" --bind 127.0.0.1 >/dev/null 2>&1) &
+  local pid=$!
+  echo "Local server PID: $pid"
+
+  sleep 0.3
+
+  if ! kill -0 "$pid" 2>/dev/null; then
+    echo "Python server failed to start on port $port" >&2
+    return 1
+  fi
+
+  local serve_output
+  if ! serve_output="$(sudo "$ts" serve --bg --https "$https_port" --set-path "$path" "http://127.0.0.1:$port" 2>&1)"; then
+    printf '%s\n' "$serve_output" >&2
+    kill "$pid" 2>/dev/null
+    case "$serve_output" in
+      *"foreground listener already exists"*)
+        echo "A foreground Tailscale Serve process is already using HTTPS $https_port." >&2
+        echo "Stop that process with Ctrl-C in the shell where it is running, then retry." >&2
+        echo "If it is a background Serve config instead, clear it with: sudo $ts serve reset" >&2
+        ;;
+    esac
+    return 1
+  fi
+
+  echo "Serving: $dir"
+  echo "Local:   http://127.0.0.1:$port"
+  echo "HTTPS:   $https_port"
+  echo "Path:    $path"
+  echo "PID:     $pid"
+  sudo "$ts" serve status
+
+  if [ "$mode" = "bg" ]; then
+    echo
+    echo "Running in background."
+    echo "Stop local server: kill $pid"
+    echo "Remove route: sudo $ts serve --https $https_port --set-path $path off"
+    return 0
+  fi
+
+  echo
+  echo "Press Ctrl-C to stop local server and remove this Tailscale Serve route."
+  trap 'echo; kill "$pid" 2>/dev/null; sudo "$ts" serve --https "$https_port" --set-path "$path" off >/dev/null 2>&1; echo "Stopped."; trap - INT TERM EXIT; return 0' INT TERM EXIT
+
+  wait "$pid"
+}
+
+serve_dir "$@"

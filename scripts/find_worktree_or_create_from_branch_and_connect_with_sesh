@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export LC_ALL=C
+
+source "$HOME/scripts/helpers/worktree_sesh.sh"
+
+readonly PRUNE_REFS_LABEL='Prune remote-tracking references'
+readonly PRUNE_AND_DELETE_LABEL='Prune remote-tracking references and delete their local branches/worktrees'
+readonly BRANCH_ICON=''
+
+declare -A stale_refs=()
+active_repo_dir=""
+
+load_stale_refs() {
+  local repo_dir="$1" remote line
+  stale_refs=()
+
+  while IFS= read -r remote; do
+    [[ -n "$remote" ]] || continue
+    while IFS= read -r line; do
+      if [[ "$line" =~ \*\ \[would\ prune\]\ (.+)$ ]]; then
+        stale_refs["${BASH_REMATCH[1]}"]=1
+      fi
+    done < <(git -C "$repo_dir" remote prune --dry-run "$remote" 2>/dev/null || true)
+  done < <(git -C "$repo_dir" remote)
+}
+
+build_picker_rows() {
+  local repo_dir="$1" label branch path prunable local_branch upstream remote_ref
+  local matched display
+  local -a worktree_rows=() local_rows=() remote_rows=() remote_refs=()
+  declare -A worktree_branches=() local_exists=() local_for_remote=()
+
+  while IFS=$'\t' read -r label branch path prunable; do
+    [[ -n "$label" ]] || continue
+    worktree_rows+=("$label"$'\tworktree\t'"$branch"$'\t'"$path")
+    [[ -n "$branch" ]] && worktree_branches["$branch"]=1
+  done < <(list_worktree_rows "$repo_dir")
+
+  while IFS=$'\t' read -r local_branch upstream; do
+    [[ -n "$local_branch" ]] || continue
+    local_exists["$local_branch"]="$upstream"
+  done < <(git -C "$repo_dir" for-each-ref \
+    --format='%(refname:short)%09%(upstream:short)' refs/heads)
+
+  while IFS= read -r remote_ref; do
+    remote_ref="${remote_ref#refs/remotes/}"
+    [[ -n "$remote_ref" && "$remote_ref" != */HEAD ]] || continue
+    remote_refs+=("$remote_ref")
+  done < <(git -C "$repo_dir" for-each-ref --format='%(refname)' refs/remotes)
+
+  for local_branch in "${!local_exists[@]}"; do
+    [[ -z "${worktree_branches[$local_branch]:-}" ]] || continue
+    upstream="${local_exists[$local_branch]}"
+    matched="false"
+
+    for remote_ref in "${remote_refs[@]}"; do
+      if [[ "$remote_ref" == "$upstream" || "${remote_ref#*/}" == "$local_branch" ]]; then
+        local_for_remote["$remote_ref"]="$local_branch"
+        matched="true"
+      fi
+    done
+
+    if [[ "$matched" == "false" ]]; then
+      local_rows+=("$BRANCH_ICON $local_branch"$'\tlocal-branch\t'"$local_branch"$'\t')
+    fi
+  done
+
+  for remote_ref in "${remote_refs[@]}"; do
+    local_branch="${local_for_remote[$remote_ref]:-}"
+    if [[ -z "$local_branch" ]]; then
+      for branch in "${!local_exists[@]}"; do
+        if [[ "${remote_ref#*/}" == "$branch" ]]; then
+          local_branch="$branch"
+          local_for_remote["$remote_ref"]="$branch"
+          break
+        fi
+      done
+    fi
+
+    if [[ -n "$local_branch" && -n "${worktree_branches[$local_branch]:-}" && \
+          -z "${stale_refs[$remote_ref]:-}" ]]; then
+      continue
+    fi
+
+    display="$BRANCH_ICON $remote_ref"
+    [[ -n "${stale_refs[$remote_ref]:-}" ]] && display+=" gone"
+    [[ -n "$local_branch" ]] && display+=" [local branch available]"
+    remote_rows+=("$display"$'\tremote-branch\t'"$remote_ref"$'\t')
+  done
+
+  printf '%s\taction\tprune\t\n' "$PRUNE_REFS_LABEL"
+  printf '%s\taction\tprune-delete\t\n' "$PRUNE_AND_DELETE_LABEL"
+  printf '%s\n' "${worktree_rows[@]}"
+  if ((${#local_rows[@]})); then printf '%s\n' "${local_rows[@]}" | sort; fi
+  if ((${#remote_rows[@]})); then printf '%s\n' "${remote_rows[@]}" | sort; fi
+}
+
+prune_remote_refs() {
+  local repo_dir="$1" remote
+  while IFS= read -r remote; do
+    [[ -n "$remote" ]] && git -C "$repo_dir" remote prune "$remote"
+  done < <(git -C "$repo_dir" remote)
+}
+
+prune_and_delete_local_branches() {
+  local repo_dir="$1" branch upstream label path prunable safe_repo=""
+  local failed="false"
+  local -a branches_to_delete=()
+  declare -A delete_set=()
+
+  while IFS=$'\t' read -r branch upstream; do
+    if [[ -n "$upstream" && -n "${stale_refs[$upstream]:-}" ]]; then
+      branches_to_delete+=("$branch")
+      delete_set["$branch"]=1
+    fi
+  done < <(git -C "$repo_dir" for-each-ref \
+    --format='%(refname:short)%09%(upstream:short)' refs/heads)
+
+  while IFS=$'\t' read -r label branch path prunable; do
+    if [[ "$prunable" == "false" && ( -z "$branch" || -z "${delete_set[$branch]:-}" ) ]]; then
+      safe_repo="$path"
+      break
+    fi
+  done < <(list_worktree_rows "$repo_dir")
+
+  if ((${#branches_to_delete[@]})) && [[ -z "$safe_repo" ]]; then
+    printf 'Cannot delete every worktree because no worktree would remain.\n' >&2
+    return 1
+  fi
+
+  prune_remote_refs "$repo_dir"
+  repo_dir="${safe_repo:-$repo_dir}"
+  active_repo_dir="$repo_dir"
+  for branch in "${branches_to_delete[@]}"; do
+    if ! wt -C "$repo_dir" --yes remove --foreground --force --force-delete "$branch"; then
+      failed="true"
+    fi
+  done
+  [[ "$failed" == "false" ]]
+}
+
+create_worktree() {
+  local repo_dir="$1" branch_ref="$2" result path branch
+  result="$(wt -C "$repo_dir" switch --no-cd --format=json "$branch_ref")"
+  path="$(jq -r '.path // .worktree_path // empty' <<<"$result")"
+  branch="$(jq -r '.branch // empty' <<<"$result")"
+  [[ -n "$path" ]] || {
+    printf 'WorkTrunk did not return a worktree path.\n' >&2
+    return 1
+  }
+  connect_worktree_with_sesh "$path" "$branch"
+}
+
+fetch_before_list() {
+  local repo_dir="$1" mode="${2:-}" fetch_output
+
+  if [[ -t 0 ]] && git -C "$repo_dir" remote get-url --all origin 2>/dev/null |
+      grep -q '^git@github\.com:'; then
+    source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
+    ensure_github_ssh_key_loaded || true
+  fi
+
+  if ! fetch_output="$(git -C "$repo_dir" fetch --all --no-prune 2>&1)"; then
+    printf 'Git fetch failed:\n%s\n' "$fetch_output" >&2
+    if [[ "$mode" != "--list" && -t 0 ]]; then
+      gum confirm 'Continue with existing local references?' --default=true || return 1
+    fi
+  fi
+}
+
+main() {
+  local repo_dir rows selected_row type target path
+  require_worktree_command
+  command -v wt >/dev/null 2>&1 || { printf 'Required command not found: wt\n' >&2; exit 1; }
+  command -v jq >/dev/null 2>&1 || { printf 'Required command not found: jq\n' >&2; exit 1; }
+  repo_dir="$(resolve_worktree_repo "${2:-$PWD}")"
+  active_repo_dir="$repo_dir"
+
+  fetch_before_list "$repo_dir" "${1:-}" || return
+  load_stale_refs "$repo_dir"
+
+  if [[ "${1:-}" == "--list" ]]; then
+    build_picker_rows "$repo_dir"
+    return
+  fi
+
+  while true; do
+    rows="$(build_picker_rows "$repo_dir")"
+    selected_row="$(pick_worktree_row "$rows" 'Pick a worktree or branch')" || return
+    IFS=$'\t' read -r _ type target path <<<"$selected_row"
+
+    case "$type:$target" in
+      action:prune)
+        prune_remote_refs "$repo_dir"
+        load_stale_refs "$repo_dir"
+        ;;
+      action:prune-delete)
+        prune_and_delete_local_branches "$repo_dir" || true
+        repo_dir="$active_repo_dir"
+        load_stale_refs "$repo_dir"
+        ;;
+      worktree:*) connect_worktree_with_sesh "$path" "$target"; return ;;
+      local-branch:*|remote-branch:*) create_worktree "$repo_dir" "$target"; return ;;
+    esac
+  done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

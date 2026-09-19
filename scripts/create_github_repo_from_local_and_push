@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
+
+usage() {
+  cat <<'EOF'
+create_github_repo_from_local_and_push: create a GitHub repo for an existing local repo and push it.
+
+Usage:
+  create_github_repo_from_local_and_push [repo_path] [flags]
+
+Arguments:
+  repo_path              Path to the local repository (default: current directory).
+                         Works from a normal repo, a bare repo root, or a worktree.
+
+Flags:
+  --owner <owner>        GitHub username or organization (default: authenticated gh user)
+  --name <name>          Repository name (default: local directory name)
+  --private              Create a private GitHub repo
+  --public               Create a public GitHub repo
+  --non-interactive      Never prompt. Defaults: authenticated gh user as owner,
+                         local directory name as repo name, private visibility.
+  -h, --help             Show this help.
+
+Any value not supplied by a flag is prompted for interactively with gum,
+unless --non-interactive is set.
+EOF
+}
+
+repo_path=""
+owner=""
+repo_name=""
+visibility=""
+non_interactive=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --owner) owner="$2"; shift 2 ;;
+    --owner=*) owner="${1#*=}"; shift ;;
+    --name) repo_name="$2"; shift 2 ;;
+    --name=*) repo_name="${1#*=}"; shift ;;
+    --private) visibility="private"; shift ;;
+    --public) visibility="public"; shift ;;
+    --non-interactive) non_interactive=true; shift ;;
+    -h | --help) usage; exit 0 ;;
+    -*)
+      printf 'Unknown flag: %s\n\n' "$1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$repo_path" ]]; then
+        printf 'Unexpected argument: %s\n\n' "$1" >&2
+        usage >&2
+        exit 1
+      fi
+      repo_path="$1"
+      shift
+      ;;
+  esac
+done
+
+repo_path="${repo_path:-$PWD}"
+
+# Validate the supplied path before asking any GitHub questions.
+if [[ ! -d "$repo_path" ]]; then
+  printf 'Repository path does not exist: %s\n' "$repo_path" >&2
+  exit 1
+fi
+
+if ! git_dir="$(git -C "$repo_path" rev-parse --absolute-git-dir 2>/dev/null)"; then
+  printf 'Not a Git repository: %s\n' "$repo_path" >&2
+  exit 1
+fi
+
+common_dir="$(git -C "$repo_path" rev-parse --path-format=absolute --git-common-dir)"
+is_bare="$(git -C "$repo_path" rev-parse --is-bare-repository)"
+
+# Resolve one repository root whether invoked from a normal repo, bare root, or worktree.
+if [[ "$is_bare" == true ]]; then
+  git_context="$repo_path"
+  if [[ "$(basename "$git_dir")" == ".git" ]]; then
+    repo_root="$(dirname "$git_dir")"
+  else
+    repo_root="$git_dir"
+  fi
+elif [[ "$git_dir" != "$common_dir" ]]; then
+  # Linked worktrees share the repository at <repo-root>/.git.
+  repo_root="$(dirname "$common_dir")"
+  git_context="$repo_path"
+else
+  repo_root="$(git -C "$repo_path" rev-parse --show-toplevel)"
+  git_context="$repo_root"
+fi
+
+# Avoid creating a duplicate GitHub repository when origin is already configured.
+if git -C "$git_context" remote get-url origin >/dev/null 2>&1; then
+  printf 'Remote origin already exists: %s\n' "$(git -C "$git_context" remote get-url origin)" >&2
+  exit 1
+fi
+
+ensure_github_ssh_key_loaded
+
+if [[ -z "$owner" ]]; then
+  if [[ "$non_interactive" == true ]]; then
+    owner="$(gh api user --jq '.login')"
+  else
+    # Offer the authenticated user and configured organization as possible owners.
+    github_username="$(gh api user --jq '.login')"
+    github_users=("$github_username")
+    if [[ -n "${GITHUB_ORG:-}" ]]; then
+      github_users+=("$GITHUB_ORG")
+    fi
+    github_users=("${github_users[@],,}")
+
+    owner="$(printf '%s\n' "${github_users[@]}" |
+      gum filter --placeholder 'Pick a GitHub username or organization...' \
+        --limit 1 --height 50 --prompt='👤 ')"
+  fi
+fi
+owner="${owner,,}"
+
+if [[ -z "$owner" ]]; then
+  printf 'No GitHub owner selected.\n' >&2
+  exit 1
+fi
+
+default_repo_name="$(basename "$repo_root")"
+if [[ -z "$repo_name" ]]; then
+  if [[ "$non_interactive" == true ]]; then
+    repo_name="$default_repo_name"
+  else
+    repo_name="$(gum input --value "$default_repo_name" --prompt='📝 ')"
+  fi
+fi
+if [[ -z "$repo_name" ]]; then
+  printf 'No repository name provided.\n' >&2
+  exit 1
+fi
+
+if [[ -z "$visibility" ]]; then
+  if [[ "$non_interactive" == true ]]; then
+    visibility="private"
+  else
+    visibility_choice="$(printf '%s\n' '🌐 Public' '🔒 Private' |
+      gum filter --limit 1 --placeholder 'Pick repo type...' --height 50)"
+
+    case "$visibility_choice" in
+      '🌐 Public') visibility="public" ;;
+      '🔒 Private') visibility="private" ;;
+      *)
+        printf 'No repository visibility selected.\n' >&2
+        exit 1
+        ;;
+    esac
+  fi
+fi
+
+full_name="$owner/$repo_name"
+gh repo create "$full_name" "--$visibility"
+
+# Configure an SSH origin, including the fetch refspec needed by bare repositories.
+remote_url="git@github.com:$full_name.git"
+git -C "$git_context" remote add origin "$remote_url"
+
+if [[ "$is_bare" == true || "$git_dir" != "$common_dir" ]]; then
+  git -C "$git_context" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+  git -C "$git_context" config core.logallrefupdates true
+fi
+
+# Push existing refs, or leave an empty repository ready for its first commit and push.
+if [[ -n "$(git -C "$git_context" for-each-ref --format='%(refname)' refs/heads)" ]]; then
+  git -C "$git_context" push --set-upstream origin --all
+else
+  printf 'No commits to push yet. Origin is configured for the first push.\n'
+fi
+
+if [[ -n "$(git -C "$git_context" tag --list)" ]]; then
+  git -C "$git_context" push origin --tags
+fi
+
+printf 'Published %s to %s\n' "$repo_root" "$remote_url"

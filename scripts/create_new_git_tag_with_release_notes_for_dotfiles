@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# create_new_git_tag_with_release_notes_for_dotfiles: create a signed version tag with notes
+#
+# Usage:
+#   create_new_git_tag_with_release_notes_for_dotfiles [major|minor|patch] [target] [--push]
+#
+# Options:
+#   --push   push the new tag to origin after creating it
+
+set -euo pipefail
+
+show_help() {
+  cat <<EOF
+Usage: $0 [major|minor|patch] [target] [--push]
+
+Create a signed version tag with release notes for the dotfiles repository.
+
+Options:
+  --push   push the new tag to origin after creating it
+  --help   show this help text
+EOF
+}
+
+DOT="/usr/bin/git --git-dir=$HOME/dotfiles/ --work-tree=$HOME"
+push_tag=false
+bump="patch"   # type of version bump (major, minor, patch)
+target="HEAD"  #commit to tag (default HEAD)
+
+for arg in "$@"; do
+  case "$arg" in
+    --help|-h)
+      show_help
+      exit 0
+      ;;
+    --push)
+      push_tag=true
+      ;;
+    major|minor|patch)
+      bump="$arg"
+      ;;
+    *)
+      target="$arg"
+      ;;
+  esac
+done
+
+last_tag=$($DOT describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+base="${last_tag#v}"
+IFS='.' read -r major minor patch <<< "$base"
+
+case "$bump" in
+  major) ((major++)); minor=0; patch=0 ;;
+  minor) ((minor++)); patch=0 ;;
+  patch) ((patch++)) ;;
+  *) show_help >&2; exit 1 ;;
+esac
+
+new_tag="v${major}.${minor}.${patch}"
+
+# Ensure target exists
+$DOT rev-parse "$target" >/dev/null 2>&1 || {
+  echo "Target commit '$target' not found" >&2
+  exit 1
+}
+
+# 4. Generate changelog notes
+if $DOT rev-parse "$last_tag" >/dev/null 2>&1; then
+  # Make sure last_tag is an ancestor of target to avoid nonsense ranges
+  if $DOT merge-base --is-ancestor "$last_tag" "$target"; then
+    range="${last_tag}..${target}"
+  else
+    echo "Warning: $last_tag is not an ancestor of $target; using only $target in changelog." >&2
+    range="$target"
+  fi
+else
+  range="$target"
+fi
+
+# Get commit messages in the range
+notes=$($DOT log --pretty=format:"- %s (%h)" "$range")
+
+
+if [ -z "$notes" ]; then
+  echo "No new commits since $last_tag. Not tagging." >&2
+  exit 1
+fi
+
+# 4. Create a signed tag with notes so GitHub can verify it
+$DOT tag -s "$new_tag" "$target" -m "$new_tag"$'\n\n'"$notes"
+
+# 5. Push the new tag when requested
+if [ "$push_tag" = true ]; then
+  $DOT push origin "$new_tag"
+fi
+
+# 6. Output the new tag and note
+echo "Tagged $new_tag:"
+echo "$notes"

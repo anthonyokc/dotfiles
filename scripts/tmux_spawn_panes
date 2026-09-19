@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+#
+# tmux_spawn_panes
+#
+# Spawn a tmux session running a command in N panes.
+#
+# Usage:
+#   tmux_spawn_panes [--quiet|--log-dir DIR] "command" count [session]
+#
+# Layout rules per window:
+#   1: single pane
+#   2: horizontal split (left/right)
+#   3: wide bottom pane
+#   4: equal quadrants
+#   5-7: fill top-left quadrant first
+#   8-10: then top-right quadrant
+#   11-13: then bottom-left quadrant
+#   14-16: then bottom-right quadrant
+#   >16: start a new window and repeat
+#
+# Examples:
+#   tmux_spawn_panes "htop" 6 perf
+#   tmux_spawn_panes --quiet "opencode" 2 opencode
+#   tmux_spawn_panes --log-dir /tmp/tmux-logs "tail -f /var/log/syslog" 3 logs
+#
+
+set -euo pipefail
+
+log_dir=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --quiet)
+      log_dir="${HOME}/.opencode/logs"
+      shift
+      ;;
+    --log-dir)
+      log_dir="${2:-}"
+      shift 2
+      ;;
+    -h|--help)
+      echo "usage: tmux_spawn_panes [--quiet|--log-dir DIR] \"command\" count [session]"
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+cmd="${1:-}"
+total="${2:-}"
+session="${3:-grid}"
+
+if [ -z "$cmd" ] || [ -z "$total" ]; then
+  echo "usage: tmux_spawn_panes [--quiet|--log-dir DIR] \"command\" count [session]"
+  exit 1
+fi
+
+if [ -n "$log_dir" ]; then
+  mkdir -p "$log_dir"
+fi
+
+if tmux has-session -t "$session" 2>/dev/null; then
+  echo "session already exists: $session"
+  exit 1
+fi
+
+# Determine the shell tmux expects.
+run_shell=$(tmux show-options -gqv default-shell)
+if [ -z "$run_shell" ]; then
+  run_shell="${SHELL:-/bin/sh}"
+fi
+
+if [ -n "$log_dir" ]; then
+  run_cmd="mkdir -p \"$log_dir\"; exec 2>>\"$log_dir/\${TMUX_PANE}.log\"; $cmd; exec \"$run_shell\""
+else
+  run_cmd="$cmd; exec \"$run_shell\""
+fi
+
+# Create the session and run the command in the first pane.
+tmux new-session -d -s "$session" "$run_shell" -lc "$run_cmd"
+
+first_window=$(tmux display-message -p -t "$session" '#{window_index}')
+
+split_run() {
+  local pane_id="$1"
+  local split_flag="$2"
+  # Split a pane and return the new pane_id.
+  # -h => left/right, -v => top/bottom.
+  tmux split-window -t "$pane_id" "$split_flag" -P -F '#{pane_id}' "$run_shell" -lc "$run_cmd"
+}
+
+subdivide() {
+  local pane="$1"
+  local count="$2"
+  # Subdivide a region into 1-4 panes with fixed layouts:
+  # 1: no split
+  # 2: left/right
+  # 3: wide bottom (split vertical then horizontal on top)
+  # 4: equal quadrants
+
+  case "$count" in
+    1) ;;
+    2) split_run "$pane" -h >/dev/null ;;
+    3)
+      split_run "$pane" -v >/dev/null
+      tmux select-pane -t "$pane"
+      split_run "$pane" -h >/dev/null
+      ;;
+    4)
+      local p_right
+      p_right=$(split_run "$pane" -h)
+      tmux select-pane -t "$pane"
+      split_run "$pane" -v >/dev/null
+      tmux select-pane -t "$p_right"
+      split_run "$p_right" -v >/dev/null
+      ;;
+  esac
+}
+
+remaining="$total"
+win=0
+
+while [ "$remaining" -gt 0 ]; do
+  # Each window holds at most 16 panes based on the quadrant-fill rules.
+  window_total=$(( remaining > 16 ? 16 : remaining ))
+
+  # First window is the current session window; others are new windows.
+  if [ "$win" -eq 0 ]; then
+    window_index="$first_window"
+    tmux select-window -t "$session:$window_index"
+  else
+    new_info=$(tmux new-window -t "$session" -n "w$win" -P -F '#{window_index}:#{pane_id}' "$run_shell" -lc "$run_cmd")
+    window_index="${new_info%%:*}"
+  fi
+
+  # Base pane_id for this window (active pane at creation time).
+  p0=$(tmux display-message -p -t "$session:$window_index" '#{pane_id}')
+  extra=$(( window_total - 1 ))
+
+  # 1-4 panes are handled directly; >4 uses quadrant filling.
+  if [ "$extra" -le 0 ]; then
+    :
+  elif [ "$extra" -le 3 ]; then
+    subdivide "$p0" $(( extra + 1 ))
+  else
+    # Create a 2x2 grid to establish the four quadrants.
+    p_tl="$p0"
+    p_tr=$(split_run "$p_tl" -h)
+    p_bl=$(split_run "$p_tl" -v)
+    p_br=$(split_run "$p_tr" -v)
+
+    # Distribute extra panes by quadrant order:
+    # TL (5-7), TR (8-10), BL (11-13), BR (14-16).
+    more=$(( extra - 3 ))
+
+    add=$(( more > 3 ? 3 : more ))
+    [ "$add" -gt 0 ] && subdivide "$p_tl" $(( 1 + add ))
+    more=$(( more - add ))
+
+    if [ "$more" -gt 0 ]; then
+      add=$(( more > 3 ? 3 : more ))
+      [ "$add" -gt 0 ] && subdivide "$p_tr" $(( 1 + add ))
+      more=$(( more - add ))
+    fi
+
+    if [ "$more" -gt 0 ]; then
+      add=$(( more > 3 ? 3 : more ))
+      [ "$add" -gt 0 ] && subdivide "$p_bl" $(( 1 + add ))
+      more=$(( more - add ))
+    fi
+
+    if [ "$more" -gt 0 ]; then
+      add=$(( more > 3 ? 3 : more ))
+      [ "$add" -gt 0 ] && subdivide "$p_br" $(( 1 + add ))
+    fi
+  fi
+
+  # Move to the next window batch if more panes remain.
+  remaining=$(( remaining - window_total ))
+  win=$(( win + 1 ))
+done
+
+tmux select-window -t "$session:$first_window"
+
+# Attach or switch based on whether we're already inside tmux.
+if [ -n "${TMUX:-}" ]; then
+  tmux switch-client -t "$session"
+else
+  tmux attach -t "$session"
+fi

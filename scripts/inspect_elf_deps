@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+
+inspect_elf_deps() {
+  local _help
+  _help="$(cat <<'EOF'
+inspect_elf_deps: inspect dynamic-library dependencies for matching ELF files
+
+What it shows for each matched file:
+  (1) file
+      What kind of binary it is.
+
+  (2) readelf
+      Direct dynamic deps declared in the ELF metadata:
+      - NEEDED   : libraries the binary says it needs directly
+      - RPATH    : embedded runtime library search path
+      - RUNPATH  : modern embedded runtime library search path
+
+  (3) ldd
+      What the dynamic linker actually resolves on this machine.
+      This can include transitive deps, actual resolved paths, and
+      "not found" failures.
+
+Why readelf and ldd differ:
+  - readelf shows what the binary declares.
+  - ldd shows what this system actually resolves at runtime.
+
+So ldd can reveal:
+  - the exact .so path chosen
+  - transitive dependencies
+  - loader/platform entries
+  - missing libraries ("not found")
+  - differences between two copies of the same library on disk
+
+Usage:
+  inspect_elf_deps <fd-pattern> [ldd_filter_regex] [search_paths...]
+
+Arguments:
+  <fd-pattern>
+      Pattern passed to fd to find files to inspect.
+      Examples:
+        'igraph.so'
+        'xml2.so'
+        'libarrow.so'
+        '.*\.so$'
+
+  [ldd_filter_regex]
+      ripgrep regex applied to ldd output.
+      Default: '.'
+
+      Useful values:
+        'not found'            show only missing libs
+        'libxml2|not found'    focus on a suspect library plus failures
+        '.'                    show full ldd output
+
+  [search_paths...]
+      One or more directories to search.
+      Default: current directory (.)
+
+Examples:
+  inspect_elf_deps 'igraph.so'
+  inspect_elf_deps 'igraph.so' 'libxml2|not found' ~/.cache/R/renv renv
+  inspect_elf_deps '.*\.so$' '.' renv
+  inspect_elf_deps 'xml2.so' 'libxml2|icu|not found' ~/.cache/R/renv renv .
+
+Practical rule:
+  - use filtered ldd output for quick triage
+  - use '.' for full ldd output when root-causing resolution issues
+  - compare working vs broken copies side by side
+
+Notes:
+  - fd is used with -0 so filenames with spaces are handled safely.
+  - stderr from file/readelf/ldd is suppressed so non-ELF files do not spam.
+  - If no files match, fd will print nothing and the function will produce no entries.
+EOF
+)"
+
+  if (( $# == 0 )); then
+    printf '%s\n' "$_help"
+    return 1
+  fi
+
+  if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    printf '%s\n' "$_help"
+    return 0
+  fi
+
+  local name_pattern="$1"
+  local ldd_filter="${2:-.}"
+  shift 2 2>/dev/null || true
+
+  local paths=("$@")
+  if [ ${#paths[@]} -eq 0 ]; then
+    paths=(.)
+  fi
+
+  fd -0 -HI "$name_pattern" "${paths[@]}" | while IFS= read -r -d '' f; do
+    printf '\n=== %s ===\n' "$f"
+
+    printf '[file]\n'
+    file "$f" 2>/dev/null || true
+
+    printf '\n[readelf]\n'
+    readelf -d "$f" 2>/dev/null | rg 'NEEDED|RPATH|RUNPATH' || true
+
+    printf '\n[ldd]\n'
+    ldd "$f" 2>/dev/null | rg "$ldd_filter" || true
+  done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  inspect_elf_deps "$@"
+fi
