@@ -176,6 +176,14 @@ source <(carapace _carapace)                            # registers all complete
 # Set up fzf key bindings and fuzzy completion
 source <(fzf --zsh)
 
+# Load direnv hooks
+eval "$(direnv hook zsh)"
+
+# Load customized tv zsh integration.
+# Ctrl-R history search is customized in this file to render literal \n as newlines
+# and syntax-highlight previews; do not replace with eval "$(tv init zsh)".
+source "$HOME/.config/television/shell/integration.zsh"
+
 # Set up wt (worktrunk), a tool for managing git worktrees.
 # Sets completions, functions, and shell integration, but only if it's installed.
 # This allows for behavior like changing directories cleanly after a worktree switch/create action
