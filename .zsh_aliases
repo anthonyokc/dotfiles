@@ -37,9 +37,23 @@ alias rm='rm -Iv' # interactive, verbose
 # Fix to recursively display files when using trash with multiple files/directories
 tra() {
   (( $# )) || return 0
-  printf '%s\n' "$@"
+
+  local target
+
+  for target in "$@"; do
+    if [[ -d $target && ! -L $target ]]; then
+      printf '%s\n' "$target"
+      fd --unrestricted --color=never . "$target"
+    elif [[ -e $target || -L $target ]]; then
+      printf '%s\n' "$target"
+    else
+      printf '%s [not found]\n' "$target"
+    fi
+  done
+
   read "ans?Trash these files? [y/N] "
   echo
+
   [[ $ans == [Yy]* ]] && trash -- "$@"
 }
 
@@ -92,8 +106,52 @@ alias sshl='sudo tail -f /var/log/auth.log'
 alias sshs='sudo systemctl status ssh'
 alias sshr='sudo systemctl restart ssh'
 
+# rsync
+alias rl='rsync -avh -e "ssh laptop" --progress'
+
 # networking
 alias i='ip -br a'
+
+# Google Cloud authentication
+_gcloud_revoke_config() {
+  local config="$1"
+  [[ -d "$config" ]] || return 0
+
+  printf 'Revoking Google Cloud credentials in %s\n' "$config"
+
+  if [[ -n "$(CLOUDSDK_CONFIG="$config" gcloud auth list --format='value(account)' 2>/dev/null)" ]]; then
+    CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT= \
+      CLOUDSDK_CONFIG="$config" \
+      gcloud auth revoke --all --quiet
+  fi
+
+  if [[ -f "$config/application_default_credentials.json" ]]; then
+    CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT= \
+      CLOUDSDK_CONFIG="$config" \
+      gcloud auth application-default revoke --quiet
+  fi
+}
+
+gcloud_logout_projects() {
+  local config
+
+  for config in "$HOME"/.config/gcloud-projects/*(N/); do
+    _gcloud_revoke_config "$config"
+  done
+}
+
+gcloud_logout() {
+  _gcloud_revoke_config "$HOME/.config/gcloud"
+}
+
+gcloud_logout_all() {
+  gcloud_logout
+  gcloud_logout_projects
+}
+
+alias gcloud-logout='gcloud_logout'
+alias gcloud-logout-projects='gcloud_logout_projects'
+alias gcloud-logout-all='gcloud_logout_all'
 
 # Vim
 alias v='nvim'
@@ -177,6 +235,10 @@ alias tmux-repo='/usr/bin/git --git-dir=$HOME/tmux/ --work-tree=$HOME'
 # xfce4
 alias start-noshow='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4 &> ~/log/xfce4.log'
 alias start='pgrep -x bspwm > /dev/null || (bspwm &> /dev/null &) && startxfce4'
+
+# windows apps
+alias nu.exe="$WINDOWS_LOCAL_APPDATA/Programs/nu/bin/nu.exe"
+alias zoxide.exe="$WINDOWS_LOCAL_APPDATA/Microsoft/WinGet/Links/zoxide.exe"
 
 # wc functions
 # Using cloc - now extensible function
@@ -284,4 +346,9 @@ colors() {
         printf "\033[48;5;%sm %3s \033[0m" "$i" "$i"
         if (( (i+1) % 16 == 0 )); then echo; fi
     done
+}
+
+refresh-dd-token() {
+  "$HOME/scripts/refresh-dd-token" &&
+    source "$HOME/.zshenv"
 }
