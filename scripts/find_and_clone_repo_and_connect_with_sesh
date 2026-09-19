@@ -1,9 +1,41 @@
 #!/usr/bin/env bash
-# find_and_clone_repo_and_connect_with_sesh - Clone a GitHub repository using fzf and gum, then connect with sesh
+# Clone a GitHub repository, then connect with the active multiplexer.
 set -euo pipefail
 
 source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
 source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
+source "$HOME/scripts/helpers/connect_multiplexer_workspace.sh"
+
+function normalize_github_repo_input() {
+    local input="$1"
+    local repo
+
+    input="${input#"${input%%[![:space:]]*}"}"
+    input="${input%"${input##*[![:space:]]}"}"
+    input="${input%%\#*}"
+    input="${input%%\?*}"
+    input="${input%/}"
+
+    if [[ "$input" =~ ^https?://github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^git@github\.com:([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^ssh://git@github\.com/([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    else
+        repo="$input"
+    fi
+
+    repo="${repo%.git}"
+
+    if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
+        return 1
+    fi
+
+    printf '%s\n' "$repo"
+}
 
 # fzf fuzzy search of git repositories, then clone
 function find_and_clone_repo_and_connect_with_sesh() {
@@ -71,9 +103,8 @@ function find_and_clone_repo_and_connect_with_sesh() {
 
     if [[ "$selection" == "Other" ]]; then
         repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
-        repo="${repo## }"; repo="${repo%% }"
-        if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
-            gum style --foreground 1 "Invalid format. Expected: user/repo (e.g., jalvesaq/nvimcom)."
+        if ! repo="$(normalize_github_repo_input "$repo")"; then
+            gum style --foreground 1 "Invalid format. Expected: user/repo or a GitHub URL (e.g., jalvesaq/nvimcom)."
             return 1
         fi
     else
@@ -84,8 +115,8 @@ function find_and_clone_repo_and_connect_with_sesh() {
     repo_dir="$HOME/code/$repo"
 
     if [ -d "$repo_dir" ]; then
-       gum spin --title "Directory $repo_dir already exists. Connecting..." -- \
-           sesh connect "$repo_dir"
+       printf 'Directory %s already exists. Connecting...\n' "$repo_dir"
+       connect_multiplexer_workspace "$repo_dir"
     else
        mkdir -p "$HOME/code/$username"  # Create directory for the username if it doesn't exist
 
@@ -100,8 +131,7 @@ function find_and_clone_repo_and_connect_with_sesh() {
            run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
                git clone "git@github.com:$repo.git" "$repo_dir"
 
-           # Connect with sesh
-           sesh connect "$repo_dir"
+           connect_multiplexer_workspace "$repo_dir"
        else
            run_with_exit_prompt "Cloning from GitHub into $repo_dir" \
                git-clone-bare-for-worktrees.sh "git@github.com:$repo.git" "$repo_dir"
@@ -109,11 +139,11 @@ function find_and_clone_repo_and_connect_with_sesh() {
             # Check which branch exists (main or master) and connect to it
             repo_root="$repo_dir"
             if [[ -d "$repo_root/main" ]]; then
-              printf "💻 Sesh connecting to $repo_root/main..."
-              sesh connect "$repo_root/main"
+              printf "💻 Multiplexer connecting to $repo_root/main..."
+              connect_multiplexer_workspace "$repo_root/main"
             elif [[ -d "$repo_root/master" ]]; then
-              printf "💻 Sesh connecting to $repo_root/master..."
-              sesh connect "$repo_root/master"
+              printf "💻 Multiplexer connecting to $repo_root/master..."
+              connect_multiplexer_workspace "$repo_root/master"
             else
               # If neither main nor master exists, connect to the first worktree
               worktree_dir="$(git -C "$repo_root" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -n 1)"
@@ -123,8 +153,8 @@ function find_and_clone_repo_and_connect_with_sesh() {
                 fi
               fi
               if [[ -n "$worktree_dir" ]]; then
-                printf "💻 Sesh connecting to $worktree_dir..."
-                sesh connect "$worktree_dir"
+                printf "💻 Multiplexer connecting to $worktree_dir..."
+                connect_multiplexer_workspace "$worktree_dir"
               else
                 # No worktrees exist, create one from main/master/first branch
                 printf "🌱 No branch directories found, creating worktree..."
@@ -143,8 +173,8 @@ function find_and_clone_repo_and_connect_with_sesh() {
                 fi
 
                 git -C "$repo_root" worktree add "$target_branch" "$target_branch"
-                printf "💻 Sesh connecting to $repo_root/$target_branch..."
-                sesh connect "$repo_root/$target_branch"
+                printf "💻 Multiplexer connecting to $repo_root/$target_branch..."
+                connect_multiplexer_workspace "$repo_root/$target_branch"
               fi
             fi
        fi

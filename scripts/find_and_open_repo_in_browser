@@ -4,6 +4,37 @@ set -euo pipefail
 
 source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
 
+function normalize_github_repo_input() {
+    local input="$1"
+    local repo
+
+    input="${input#"${input%%[![:space:]]*}"}"
+    input="${input%"${input##*[![:space:]]}"}"
+    input="${input%%\#*}"
+    input="${input%%\?*}"
+    input="${input%/}"
+
+    if [[ "$input" =~ ^https?://github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^git@github\.com:([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^ssh://git@github\.com/([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    else
+        repo="$input"
+    fi
+
+    repo="${repo%.git}"
+
+    if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
+        return 1
+    fi
+
+    printf '%s\n' "$repo"
+}
+
 function find_and_open_repo_in_browser() {
     # Start GitHub API search in background
     temp_fresh_results=$(mktemp)
@@ -61,15 +92,11 @@ function find_and_open_repo_in_browser() {
     # If user selected "Other", prompt for manual repo input
     if [[ "$selection" == "Other" ]]; then
         repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
-        if [[ -z "$repo" ]]; then
+        if [[ -z "${repo//[[:space:]]/}" ]]; then
             return
         fi
-        # Trim spaces
-        repo="${repo## }"
-        repo="${repo%% }"
-        # Basic validation: must contain exactly one slash and no spaces
-        if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
-            gum style --foreground 1 "Invalid format. Expected: user/repo (e.g., jalvesaq/nvimcom)."
+        if ! repo="$(normalize_github_repo_input "$repo")"; then
+            gum style --foreground 1 "Invalid format. Expected: user/repo or a GitHub URL (e.g., jalvesaq/nvimcom)."
             return 1
         fi
     else

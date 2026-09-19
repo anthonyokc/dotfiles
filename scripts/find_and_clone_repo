@@ -7,6 +7,37 @@ set -euo pipefail
 source "$HOME/scripts/helpers/run_with_exit_prompt.sh"
 source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
 
+function normalize_github_repo_input() {
+    local input="$1"
+    local repo
+
+    input="${input#"${input%%[![:space:]]*}"}"
+    input="${input%"${input##*[![:space:]]}"}"
+    input="${input%%\#*}"
+    input="${input%%\?*}"
+    input="${input%/}"
+
+    if [[ "$input" =~ ^https?://github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^github\.com/([^/]+)/([^/]+)(/.*)?$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^git@github\.com:([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    elif [[ "$input" =~ ^ssh://git@github\.com/([^/]+)/([^/]+)$ ]]; then
+        repo="${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    else
+        repo="$input"
+    fi
+
+    repo="${repo%.git}"
+
+    if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then
+        return 1
+    fi
+
+    printf '%s\n' "$repo"
+}
+
 # fzf fuzzy search of git repositories, then clone
 function find_and_clone_repo() {
     ensure_github_ssh_key_loaded
@@ -29,9 +60,8 @@ function find_and_clone_repo() {
 
     if [[ "$selection" == "Other" ]]; then
         repo="$(gum input --placeholder 'user/repo' --prompt 'Enter GitHub repo (user/repo): ')"
-        repo="${repo## }"; repo="${repo%% }" # trim spaces
-        if [[ -z "$repo" || "$repo" != */* || "$repo" == *" "* || "$repo" == */ || "$repo" == /* ]]; then # validate format
-            gum style --foreground 1 "Invalid format. Expected: user/repo (e.g., jalvesaq/nvimcom)."
+        if ! repo="$(normalize_github_repo_input "$repo")"; then
+            gum style --foreground 1 "Invalid format. Expected: user/repo or a GitHub URL (e.g., jalvesaq/nvimcom)."
             return 1
         fi
     else
