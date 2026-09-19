@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Search and connect to tmux/sesh sessions or Herdr workspaces and code repos.
 set -euo pipefail
 
