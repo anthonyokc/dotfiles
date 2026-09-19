@@ -12,7 +12,7 @@ source "$HOME/scripts/helpers/ensure_ssh_key_loaded.sh"
 
 usage() {
   cat <<EOF
-Usage: $SCRIPT_NAME [--all|--staged] [--model provider/model]
+Usage: $SCRIPT_NAME [--all|--staged] [--model provider/model] [--variant name]
 
 Default behavior sends staged changes (git diff --cached) to opencode, receives
 a conventional commit subject, and creates the commit. Use --all to include
@@ -22,13 +22,15 @@ Options:
   --all          Use the full working tree diff (staged + unstaged)
   --staged       Force staged diff even if --all was set earlier
   --model VALUE  Override the opencode model (provider/model)
+  --variant NAME Override the opencode variant
   -h, --help     Show this help and exit
 EOF
 }
 
 SCRIPT_NAME="$(basename "$0")"
 DIFF_MODE="staged"
-REQUESTED_MODEL="${OPENCODE_MODEL:-opencode/kimi-k2.5}"
+REQUESTED_MODEL="${OPENCODE_MODEL:-opencode-go/deepseek-v4-flash}"
+REQUESTED_VARIANT="${OPENCODE_VARIANT:-no-thinking}"
 OC_BIN="${OPENCODE_BIN:-$(command -v opencode 2>/dev/null || true)}"
 GUM_BIN="${GUM_BIN:-$(command -v gum 2>/dev/null || true)}"
 
@@ -242,6 +244,13 @@ while [[ $# -gt 0 ]]; do
         fail 'Error: --model requires a value'
       fi
       REQUESTED_MODEL="$2"
+      shift 2
+      ;;
+    --variant)
+      if [[ $# -lt 2 ]]; then
+        fail 'Error: --variant requires a value'
+      fi
+      REQUESTED_VARIANT="$2"
       shift 2
       ;;
     -h|--help)
@@ -511,6 +520,9 @@ run_opencode() {
   local args=(run --agent plan)
   if [[ -n "$REQUESTED_MODEL" ]]; then
     args+=(--model "$REQUESTED_MODEL")
+  fi
+  if [[ -n "$REQUESTED_VARIANT" ]]; then
+    args+=(--variant "$REQUESTED_VARIANT")
   fi
   args+=("$prompt")
 
