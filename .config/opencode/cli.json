@@ -1,0 +1,53 @@
+{
+  "$schema": "https://opencode.ai/v2/cli.json",
+  "theme": {
+    "name": "catppuccin"
+  },
+  "keybinds": {
+    "leader": "ctrl+k",
+    "app.exit": "ctrl+c,ctrl+d",
+    "command.palette.show": "ctrl+p",
+    "prompt.editor": "<leader>e",
+    "theme.switch": "<leader>t",
+    "opencode.status": "<leader>q",
+    "session.export": "none",
+    "session.new": "<leader>n",
+    "session.list": "<leader>l",
+    "session.timeline": "<leader>g",
+    "session.share": "none",
+    "session.unshare": "none",
+    "session.interrupt": "ctrl+x",
+    "session.compact": "<leader>c",
+    "session.tab.next": "ctrl+l",
+    "session.tab.previous": "ctrl+h",
+    "session.tab.history.forward": "alt+l",
+    "session.tab.history.back": "alt+h",
+    "model.dialog.provider": "none",
+    "model.list": "<leader>m",
+    "model.cycle_recent": "f2",
+    "model.cycle_recent_reverse": "shift+f2",
+    "agent.list": "none",
+    "agent.cycle": "tab",
+    "agent.cycle.reverse": "shift+tab",
+    "session.page.up": "pageup",
+    "session.page.down": "pagedown",
+    "session.half.page.up": "ctrl+alt+u",
+    "session.half.page.down": "ctrl+alt+d",
+    "session.first": "ctrl+g",
+    "session.last": "ctrl+alt+g",
+    "messages.copy": "<leader>y",
+    "session.undo": "<leader>u",
+    "session.redo": "<leader>r",
+    "prompt.skills": "<leader>s",
+    "prompt.stash": "<leader>a",
+    "prompt.clear": "ctrl+u",
+    "prompt.paste": "ctrl+v",
+    "input.submit": "enter",
+    "input.newline": "ctrl+j",
+    "input.word.backward": "ctrl+b"
+  },
+  "scroll": {
+    "speed": 5,
+    "acceleration": true
+  }
+}
