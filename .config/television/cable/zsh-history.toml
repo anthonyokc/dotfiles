@@ -1,0 +1,14 @@
+[metadata]
+name = "zsh-history"
+description = "A channel to select from your zsh history"
+requirements = ["zsh", "batcat"]
+
+[source]
+command = "sed '1!G;h;$!d' ${HISTFILE:-${HOME}/.zsh_history}"
+display = "{split:;:1..}"
+output = "{split:;:1..}"
+no_sort = true
+frecency = false
+
+[preview]
+command = "printf '%b\n' '{split:;:1..}' | batcat --language=zsh --style=plain --color=always"
