@@ -1,6 +1,6 @@
 ---
 description: Review atomic Conventional Commit messages interactively
-subtask: true
+subagent: true
 model: cursor/composer-2.5
 ---
 Use the `atomic-conventional-commits` skill.

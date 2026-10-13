@@ -1,87 +1,95 @@
 {
-  "permission": {
-    "skill": { "orchestration-preflight": "deny", "orchestration-astra": "deny" },
-    "task": {
-      "sol-*": "deny"
-    }
-  },
+  "permissions": [
+    { "action": "notion_*", "resource": "*", "effect": "deny" },
+    { "action": "skill", "resource": "orchestration-preflight", "effect": "deny" },
+    { "action": "skill", "resource": "orchestration-astra", "effect": "deny" },
+    { "action": "subagent", "resource": "sol-*", "effect": "deny" }
+  ],
   "$schema": "https://opencode.ai/config.json",
   "share": "disabled",
-  "plugin": [
-    "cursor-opencode-provider@0.6.6",
-    "@plannotator/opencode@latest",
-    "./plugins/moshi-hooks.ts"
-  ],
-  "tools": {
-    "notion_*": false
+  "websearch": {
+    "provider": "exa"
   },
-  "subagent_depth": 1,
-  "agent": {
+  "plugins": [
+    "cursor-opencode-provider@0.7.6",
+    "@plannotator/opencode@latest",
+    "@openchamber/opencode-claude"
+  ],
+  "experimental": {
+    "subagent_depth": 1
+  },
+  "agents": {
     "build-local": {
       "description": "Private local agent for the SGLang Qwen3.8 model, with Notion access.",
       "mode": "primary",
       "model": "sglang/RadixArk/Qwen3.8-27B-NVFP4",
-      "tools": {
-        "notion_*": true
-      }
+      "permissions": [
+        { "action": "notion_*", "resource": "*", "effect": "allow" }
+      ]
     }
   },
-  "provider": {
+  "providers": {
     "opencode": {
       "models": {
         "kimi-k2.5": {
-          "variants": {
-            "no-thinking": {
-              "thinking": {
-                "type": "disabled"
+          "variants": [
+            {
+              "id": "no-thinking",
+              "settings": {
+                "thinking": {
+                  "type": "disabled"
+                }
               }
             }
-          }
+          ]
         },
         "kimi-k2.6": {
-          "variants": {
-            "no-thinking": {
-              "thinking": {
-                "type": "disabled"
+          "variants": [
+            {
+              "id": "no-thinking",
+              "settings": {
+                "thinking": {
+                  "type": "disabled"
+                }
               }
             }
-          }
+          ]
         }
       }
     },
     "lmstudio": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "LM Studio (desktop)",
-      "options": {
+      "settings": {
         "baseURL": "https://desktop.tail69958b.ts.net:1234/v1"
       },
       "models": {
         "qwen3.8-27b": {
           "name": "Qwen3.8 27B - Q4",
-          "tool_call": true
+          "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] }
         },
         "qwen3.6-35b-a3b": {
           "name": "Qwen3.6 35B-A4B - Q4",
-          "tool_call": true
+          "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] }
         },
         "qwen3.5-4b": {
           "name": "Qwen3.5 4B - Q4",
-          "tool_call": true
+          "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] }
         },
         "qwen3.5-0.8b": {
           "name": "Qwen3.5 0.8B - Q4",
-          "tool_call": true
+          "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] }
         },
         "qwopus3.5-9b-v3": {
           "name": "Qwopus3.5 9B v3",
-          "tool_call": true
+          "capabilities": { "tools": true, "input": ["text", "image"], "output": ["text"] }
         }
       }
     },
     "rapid-mlx": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "Rapid MLX",
-      "options": {
+      "settings": {
         "baseURL": "https://anthonys-macbook-pro.tail69958b.ts.net/v1"
       },
       "models": {
@@ -94,9 +102,9 @@
       }
     },
     "llamacpp": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "llama.cpp (local)",
-      "options": {
+      "settings": {
         "baseURL": "http://127.0.0.1:8080/v1"
       },
       "models": {
@@ -112,9 +120,9 @@
       }
     },
     "vllm": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "vLLM (local)",
-      "options": {
+      "settings": {
         "baseURL": "https://127.0.0.1:8000/v1"
       },
       "models": {
@@ -124,50 +132,61 @@
       }
     },
     "sglang": {
-      "npm": "@ai-sdk/openai-compatible",
+      "package": "aisdk:@ai-sdk/openai-compatible",
       "name": "SGLang (local)",
-      "options": {
+      "settings": {
         "baseURL": "http://127.0.0.1:30000/v1",
         "apiKey": "EMPTY"
       },
       "models": {
         "RadixArk/Qwen3.8-27B-NVFP4": {
           "name": "Qwen3.8 27B NVFP4",
-          "reasoning": true,
-          "tool_call": true,
-          "variants": {
-            "low": {
-              "reasoningEffort": "low",
-              "chat_template_kwargs": {
-                "preserve_thinking": true
+          "variants": [
+            {
+              "id": "low",
+              "settings": {
+                "reasoningEffort": "low",
+                "chat_template_kwargs": {
+                  "preserve_thinking": true
+                }
               }
             },
-            "medium": {
-              "reasoningEffort": "medium",
-              "chat_template_kwargs": {
-                "preserve_thinking": true
+            {
+              "id": "medium",
+              "settings": {
+                "reasoningEffort": "medium",
+                "chat_template_kwargs": {
+                  "preserve_thinking": true
+                }
               }
             },
-            "xhigh": {
-              "reasoningEffort": "xhigh",
-              "chat_template_kwargs": {
-                "preserve_thinking": true
+            {
+              "id": "xhigh",
+              "settings": {
+                "reasoningEffort": "xhigh",
+                "chat_template_kwargs": {
+                  "preserve_thinking": true
+                }
               }
             },
-            "none": {
-              "chat_template_kwargs": {
-                "enable_thinking": false
+            {
+              "id": "none",
+              "settings": {
+                "chat_template_kwargs": {
+                  "enable_thinking": false
+                }
               }
             }
-          },
-          "interleaved": {
-            "field": "reasoning_content"
+          ],
+          "compatibility": {
+            "reasoningField": "reasoning_content"
           },
           "limit": {
             "context": 53000,
             "output": 4096
           },
-          "modalities": {
+          "capabilities": {
+            "tools": true,
             "input": [
               "text"
             ],
@@ -177,36 +196,33 @@
           }
         }
       }
-    },
-    "cursor": {
-      "name": "Cursor",
-      "npm": "cursor-opencode-provider@0.6.6",
-      "models": {}
     }
   },
   "mcp": {
-    "notion": {
-      "type": "remote",
-      "url": "https://mcp.notion.com/mcp",
-      "enabled": true
-    },
-    "r-btw-readonly": {
-      "type": "local",
-      "command": [
-        "Rscript",
-        "-e",
-        "btw::btw_mcp_server(tools = btw::btw_tools(c('docs', 'pkg', 'env', 'sessioninfo')))"
-      ],
-      "enabled": false
-    },
-    "r-btw-run": {
-      "type": "local",
-      "command": [
-        "Rscript",
-        "-e",
-        "options(btw.run_r.enabled = TRUE); btw::btw_mcp_server(tools = btw::btw_tools(c('env', 'run', 'docs', 'pkg', 'sessioninfo')))"
-      ],
-      "enabled": true
+    "servers": {
+      "notion": {
+        "type": "remote",
+        "url": "https://mcp.notion.com/mcp",
+        "disabled": false
+      },
+      "r-btw-readonly": {
+        "type": "local",
+        "command": [
+          "Rscript",
+          "-e",
+          "btw::btw_mcp_server(tools = btw::btw_tools(c('docs', 'pkg', 'env', 'sessioninfo')))"
+        ],
+        "disabled": true
+      },
+      "r-btw-run": {
+        "type": "local",
+        "command": [
+          "Rscript",
+          "-e",
+          "options(btw.run_r.enabled = TRUE); btw::btw_mcp_server(tools = btw::btw_tools(c('env', 'run', 'docs', 'pkg', 'sessioninfo')))"
+        ],
+        "disabled": false
+      }
     }
   }
 }

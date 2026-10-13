@@ -3,11 +3,9 @@ set -euo pipefail
 
 if [[ ${1:-} == "--exa" ]]; then
   shift
-  export OPENCODE_ENABLE_EXA=1
-  export OPENCODE_CONFIG_CONTENT='{"tools":{"notion_*":true},"permission":{"websearch":"ask","webfetch":"ask"}}'
+  export OPENCODE_CONFIG_CONTENT='{"permissions":[{"action":"notion_*","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"ask"},{"action":"webfetch","resource":"*","effect":"ask"}]}'
 else
-  unset OPENCODE_ENABLE_EXA
-  export OPENCODE_CONFIG_CONTENT='{"tools":{"notion_*":true}}'
+  export OPENCODE_CONFIG_CONTENT='{"permissions":[{"action":"notion_*","resource":"*","effect":"allow"}]}'
 fi
 
 exec opencode "$@"

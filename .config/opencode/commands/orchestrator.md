@@ -1,7 +1,7 @@
 ---
 description: Orchestrate work with Fable 5.1 using Sol high and xhigh workers.
 agent: fable-orchestrator
-subtask: false
+subagent: false
 ---
 
 Treat the following text as the complete user request.
