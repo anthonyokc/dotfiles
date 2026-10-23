@@ -1,10 +1,12 @@
 {
-  "$schema": "https://opencode.ai/v2/cli.json",
   "theme": {
-    "name": "catppuccin"
+    "name": "catppuccin",
+    "mode": "dark"
   },
   "keybinds": {
     "leader": "ctrl+k",
+    "session.tab.next": "ctrl+l",
+    "session.tab.previous": "ctrl+y",
     "app.exit": "ctrl+c,ctrl+d",
     "command.palette.show": "ctrl+p",
     "prompt.editor": "<leader>e",
@@ -18,10 +20,6 @@
     "session.unshare": "none",
     "session.interrupt": "ctrl+x",
     "session.compact": "<leader>c",
-    "session.tab.next": "ctrl+l",
-    "session.tab.previous": "ctrl+h",
-    "session.tab.history.forward": "alt+l",
-    "session.tab.history.back": "alt+h",
     "model.dialog.provider": "none",
     "model.list": "<leader>m",
     "model.cycle_recent": "f2",
@@ -49,5 +47,34 @@
   "scroll": {
     "speed": 5,
     "acceleration": true
+  },
+  "diffs": {
+    "wrap": "word",
+    "tree": true,
+    "single": false,
+    "view": "split"
+  },
+  "session": {
+    "sidebar": "auto",
+    "scrollbar": false,
+    "thinking": "show",
+    "markdown": "rendered",
+    "grouping": "auto",
+    "new_location": "launch",
+    "permissions": "prompt"
+  },
+  "animations": true,
+  "plugins": [
+    "./herdr-opencode",
+    "./plugins/moshi-hooks-tui"
+  ],
+  "tabs": {
+    "mode": "on",
+    "scope": "cwd",
+    "layout": "horizontal",
+    "indicators": "status"
+  },
+  "prompt": {
+    "image_preview": true
   }
 }

@@ -11,7 +11,7 @@
     "provider": "exa"
   },
   "plugins": [
-    "cursor-opencode-provider@0.7.6",
+    "cursor-opencode-provider@0.8.1",
     "@plannotator/opencode@latest",
     "@openchamber/opencode-claude"
   ],

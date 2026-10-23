@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "2.0.47",
+    "@firecrawl/anydoc": "0.1.2",
+    "@opencode/plugin": "2.0.22",
+    "@opencode-ai/plugin": "1.18.13"
+  }
+}
