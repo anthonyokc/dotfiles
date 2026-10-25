@@ -6,52 +6,92 @@ branch="${2:?Missing local branch name}"
 remote="${3:-}"
 remote_branch="${4:-$branch}"
 repo_dir="$(git rev-parse --show-toplevel)"
+deleted=0
 
-require_local_branch() {
-  git show-ref --verify --quiet "refs/heads/$branch" || {
-    printf 'Local branch does not exist: %s\n' "$branch" >&2
-    exit 1
-  }
+local_branch_exists() {
+  git show-ref --verify --quiet "refs/heads/$branch"
 }
 
-require_remote_branch() {
-  [[ -n "$remote" && -n "$remote_branch" ]] || {
-    printf 'The selected branch has no remote branch.\n' >&2
-    exit 1
-  }
+# Returns 0 if the branch exists on the remote, 1 if it does not.
+# Exits if the remote cannot be reached, so nothing is deleted on a network error.
+remote_branch_exists() {
+  local status=0
+  git ls-remote --exit-code --heads "$remote" "refs/heads/$remote_branch" >/dev/null || status=$?
+  case "$status" in
+    0) return 0 ;;
+    2) return 1 ;;
+    *)
+      printf 'Cannot reach remote %s (git ls-remote exit %s). Nothing was deleted.\n' "$remote" "$status" >&2
+      exit 1
+      ;;
+  esac
 }
 
 reject_current_branch() {
-  if [[ "$(git branch --show-current)" == "$branch" ]]; then
+  if local_branch_exists && [[ "$(git branch --show-current)" == "$branch" ]]; then
     printf 'Cannot remove the worktree that runs lazygit. Switch worktrees first.\n' >&2
     exit 1
   fi
 }
 
+delete_local_branch() {
+  if ! local_branch_exists; then
+    printf 'Skipped local branch: %s does not exist.\n' "$branch"
+    return
+  fi
+  git branch -D -- "$branch"
+  deleted=$((deleted + 1))
+}
+
 delete_remote_branch() {
-  require_remote_branch
-  git push "$remote" --delete "$remote_branch"
+  if [[ -z "$remote" || -z "$remote_branch" ]]; then
+    printf 'Skipped remote branch: %s has no upstream.\n' "$branch"
+    return
+  fi
+  if remote_branch_exists; then
+    git push "$remote" --delete "$remote_branch"
+    deleted=$((deleted + 1))
+    return
+  fi
+  printf 'Skipped remote branch: %s/%s does not exist on the remote.\n' "$remote" "$remote_branch"
+  if git show-ref --verify --quiet "refs/remotes/$remote/$remote_branch"; then
+    git branch -d -r -- "$remote/$remote_branch"
+    deleted=$((deleted + 1))
+  fi
 }
 
 remove_worktree() {
   local keep_branch="${1:-false}"
-  require_local_branch
-  reject_current_branch
+  if ! local_branch_exists; then
+    printf 'Skipped worktree: local branch %s does not exist.\n' "$branch"
+    return
+  fi
   if [[ "$keep_branch" == "true" ]]; then
     wt -C "$repo_dir" --yes remove --foreground --no-delete-branch "$branch"
   else
     wt -C "$repo_dir" --yes remove --foreground --force-delete "$branch"
   fi
+  deleted=$((deleted + 1))
+}
+
+finish_delete() {
+  if (( deleted == 0 )); then
+    printf 'Nothing to delete for %s.\n' "$branch" >&2
+    exit 1
+  fi
 }
 
 case "$action" in
   create-local) wt -C "$repo_dir" switch --no-cd "$branch" ;;
-  create-remote) require_remote_branch; wt -C "$repo_dir" switch --no-cd "$remote/$remote_branch" ;;
-  delete-local) require_local_branch; git branch -D -- "$branch" ;;
-  delete-remote) delete_remote_branch ;;
-  delete-both) delete_remote_branch; require_local_branch; git branch -D -- "$branch" ;;
-  delete-local-worktree) remove_worktree false ;;
-  delete-remote-worktree) delete_remote_branch; remove_worktree true ;;
-  delete-all-worktree) delete_remote_branch; remove_worktree false ;;
+  create-remote)
+    [[ -n "$remote" && -n "$remote_branch" ]] || { printf 'The selected branch has no remote branch.\n' >&2; exit 1; }
+    wt -C "$repo_dir" switch --no-cd "$remote/$remote_branch"
+    ;;
+  delete-local) reject_current_branch; delete_local_branch; finish_delete ;;
+  delete-remote) delete_remote_branch; finish_delete ;;
+  delete-both) reject_current_branch; delete_remote_branch; delete_local_branch; finish_delete ;;
+  delete-local-worktree) reject_current_branch; remove_worktree false; finish_delete ;;
+  delete-remote-worktree) reject_current_branch; delete_remote_branch; remove_worktree true; finish_delete ;;
+  delete-all-worktree) reject_current_branch; delete_remote_branch; remove_worktree false; finish_delete ;;
   *) printf 'Unknown action: %s\n' "$action" >&2; exit 2 ;;
 esac
