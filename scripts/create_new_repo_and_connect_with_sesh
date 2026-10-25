@@ -18,7 +18,8 @@ Flags:
   --layout <bare|normal> Repo layout (bare = bare repo + worktrees)
   --private              Create a private GitHub repo
   --public               Create a public GitHub repo
-  --template <o/r|none>  GitHub template repo to create from
+  --template <o/r|none>  GitHub template repo to create from (with --local-only,
+                         its files are copied into the first commit)
   --local-only           Only create the repository locally (no GitHub remote)
   --no-connect           Skip multiplexer connection at the end (prints the path)
   --non-interactive      Never prompt. Requires --name. Defaults: bare layout,
@@ -28,6 +29,36 @@ Flags:
 Any value not supplied by a flag is prompted for interactively with gum,
 unless --non-interactive is set.
 EOF
+}
+
+# Copy a GitHub template's files into a local worktree and commit them,
+# matching GitHub's single initial commit for template-based repos.
+apply_template_to_local_repo() {
+  local template="$1" target_dir="$2" non_interactive="$3"
+  local tarball
+  tarball="$(mktemp)"
+
+  if ! gh api "repos/$template/tarball" >"$tarball"; then
+    rm -f "$tarball"
+    printf 'Failed to download template %s.\n' "$template" >&2
+    return 1
+  fi
+
+  tar -xzf "$tarball" --strip-components=1 -C "$target_dir"
+  rm -f "$tarball"
+
+  git -C "$target_dir" add --all
+
+  # Signed commits need the SSH signing key in the agent.
+  if [[ "$non_interactive" == false &&
+    "$(git -C "$target_dir" config --get commit.gpgsign)" == "true" &&
+    "$(git -C "$target_dir" config --get gpg.format)" == "ssh" ]]; then
+    ensure_git_signing_ssh_key_loaded "$(git -C "$target_dir" config --get user.signingkey)" || true
+  fi
+
+  if ! git -C "$target_dir" commit --quiet -m "chore: Initialize from template $template"; then
+    printf '⚠️  Could not commit template files. They are staged in %s.\n' "$target_dir" >&2
+  fi
 }
 
 function create_new_repo_and_connect_with_sesh() {
@@ -157,37 +188,6 @@ function create_new_repo_and_connect_with_sesh() {
     esac
   fi
 
-  mkdir -p "$github_user_dir" # Create directory for the username if it doesn't exist
-
-  if [[ "$local_only" == true ]]; then
-    local repo_root="$github_user_dir/$repo_name"
-    local connect_dir
-
-    # Initialize either a standard repository or a bare repository with a main worktree.
-    if [[ "$layout" == "normal" ]]; then
-      git init --initial-branch=main "$repo_root"
-      connect_dir="$repo_root"
-    else
-      mkdir "$repo_root"
-      git init --bare --initial-branch=main "$repo_root/.git"
-      git -C "$repo_root" config core.logallrefupdates true
-      git -C "$repo_root" worktree add --orphan "$repo_root/main"
-      connect_dir="$repo_root/main"
-    fi
-
-    printf "Created local repository at %s.\n" "$repo_root"
-    printf "Run create_github_repo_from_local_and_push from the repository when you are ready to publish it.\n"
-    if [[ "$no_connect" == true ]]; then
-      printf 'Repository ready at %s\n' "$connect_dir"
-    else
-      connect_multiplexer_workspace "$connect_dir"
-    fi
-    return
-  fi
-
-  # GitHub path from here on.
-  ensure_github_ssh_key_loaded
-
   # Get templates and add a "None" option
   if [[ -z "$template" ]]; then
     template=$(
@@ -208,6 +208,41 @@ function create_new_repo_and_connect_with_sesh() {
       return 1
     fi
   fi
+
+  mkdir -p "$github_user_dir" # Create directory for the username if it doesn't exist
+
+  if [[ "$local_only" == true ]]; then
+    local repo_root="$github_user_dir/$repo_name"
+    local connect_dir
+
+    # Initialize either a standard repository or a bare repository with a main worktree.
+    if [[ "$layout" == "normal" ]]; then
+      git init --initial-branch=main "$repo_root"
+      connect_dir="$repo_root"
+    else
+      mkdir "$repo_root"
+      git init --bare --initial-branch=main "$repo_root/.git"
+      git -C "$repo_root" config core.logallrefupdates true
+      git -C "$repo_root" worktree add --orphan "$repo_root/main"
+      connect_dir="$repo_root/main"
+    fi
+
+    if [[ "$template" != "None" ]]; then
+      apply_template_to_local_repo "$template" "$connect_dir" "$non_interactive"
+    fi
+
+    printf "Created local repository at %s.\n" "$repo_root"
+    printf "Run create_github_repo_from_local_and_push from the repository when you are ready to publish it.\n"
+    if [[ "$no_connect" == true ]]; then
+      printf 'Repository ready at %s\n' "$connect_dir"
+    else
+      connect_multiplexer_workspace "$connect_dir"
+    fi
+    return
+  fi
+
+  # GitHub path from here on.
+  ensure_github_ssh_key_loaded
 
   if [[ -z "$visibility" ]]; then
     local repo_types=("🌐 Public" "🔒 Private")
