@@ -24,6 +24,7 @@ plug "romkatv/powerlevel10k" # A theme for Zsh
 
 ### ZSH Options ⚙️
 # General shell options
+setopt INTERACTIVE_COMMENTS # Allow comments in interactive shell commands
 setopt glob_dots # Include hidden files in globbing, e.g., `ls *` will include files starting with a dot
 setopt histignorealldups # Ignore duplicated commands in history, keeping only the most recent
 setopt sharehistory # Share history between all sessions, so commands typed in one session are available in others
