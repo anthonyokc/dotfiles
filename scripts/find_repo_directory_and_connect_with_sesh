@@ -25,12 +25,20 @@ list_sesh() {
 
 # Find all code directories under ~/code, accounting for multiple Git worktrees
 list_code_repos() {
-  fd -td . ~/code --min-depth 2 --max-depth 2 |
-    xargs -n1 -P"$(nproc)" bash -c '
+  local workers
+  workers="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" || workers=1
+  [[ "$workers" =~ ^[1-9][0-9]*$ ]] || workers=1
+
+  # NUL delimiters preserve spaces and quotes on both BSD and GNU xargs.
+  fd -0 -td . ~/code --min-depth 2 --max-depth 2 |
+    xargs -0 -n1 -P "$workers" bash -c '
+      [[ $# -gt 0 ]] || exit 0
       dir="${1%/}";
       if [ "$(git -C "$dir" rev-parse --is-bare-repository 2>/dev/null)" = true ]; then
         for wt in "$dir"/*; do
-          printf "%s\n" "$wt"
+          if [[ -d "$wt" ]]; then
+            printf "%s\n" "$wt"
+          fi
         done
       else
         printf "%s\n" "$dir"

@@ -107,7 +107,7 @@ function create_new_repo_and_connect_with_sesh() {
   fi
 
   # Normalize template: "none"/"None"/empty flag value all mean no template.
-  if [[ "${template,,}" == "none" ]]; then
+  if [[ "$(printf '%s' "$template" | tr '[:upper:]' '[:lower:]')" == "none" ]]; then
     template="None"
   fi
 
@@ -122,7 +122,10 @@ function create_new_repo_and_connect_with_sesh() {
       if [[ -n "${GITHUB_ORG:-}" ]]; then
         github_users+=("$GITHUB_ORG")
       fi
-      github_users=("${github_users[@],,}") # Convert array elements to lowercase
+      local index
+      for index in "${!github_users[@]}"; do
+        github_users[$index]="$(printf '%s' "${github_users[$index]}" | tr '[:upper:]' '[:lower:]')"
+      done
 
       owner="$(
         printf "%s\n" "${github_users[@]}" |
@@ -132,7 +135,7 @@ function create_new_repo_and_connect_with_sesh() {
       )"
     fi
   fi
-  owner="${owner,,}"
+  owner="$(printf '%s' "$owner" | tr '[:upper:]' '[:lower:]')"
 
   if [[ -z "$owner" ]]; then
     printf 'No GitHub owner selected. Exiting.\n' >&2
