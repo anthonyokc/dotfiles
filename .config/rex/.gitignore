@@ -1,0 +1,5 @@
+__pycache__/
+*.log
+explode/last
+explode/backup-static/
+explode/boomfx/boomfx

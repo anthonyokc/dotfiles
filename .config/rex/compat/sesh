@@ -1,0 +1,7 @@
+#!/bin/sh
+# Only the clone and creation popups put this directory on PATH.
+if [ "$1" != connect ] || [ "$#" -ne 2 ]; then
+    printf '%s\n' 'The Rex compatibility script supports only sesh connect DIRECTORY.' >&2
+    exit 2
+fi
+exec python3 "$HOME/.config/rex/projects.py" connect "$2"
